@@ -1,5 +1,5 @@
 using astratech_apps_backend.DTOs.MeninggalDunia;
-using astratech_apps_backend.Services.Interfaces;
+using astratech_apps_backend.Repositories.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Text;
@@ -11,17 +11,16 @@ namespace astratech_apps_backend.Controllers
     [Route("api/[controller]")]
     public class MeninggalDuniaController : ControllerBase
     {
-        private readonly IMeninggalDuniaService _service;
+        private readonly IMeninggalDuniaRepository _repository;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IConfiguration _configuration;
 
-        public MeninggalDuniaController(IMeninggalDuniaService service, IHttpClientFactory httpClientFactory, IConfiguration configuration)
+        public MeninggalDuniaController(IMeninggalDuniaRepository repository, IHttpClientFactory httpClientFactory, IConfiguration configuration)
         {
-            _service = service;
+            _repository = repository;
             _httpClientFactory = httpClientFactory;
             _configuration = configuration;
         }
-
 
         [HttpGet("GetAll")]
         public async Task<IActionResult> GetAll([FromQuery] GetAllMeninggalDuniaRequest req)
@@ -34,9 +33,24 @@ namespace astratech_apps_backend.Controllers
                 }
                 
                 ModelState.Clear();
-                var result = await _service.GetAllAsync(req);
+                var result = await _repository.GetAllAsync(req);
                 
-                return Ok(result);
+                return Ok(new MeninggalDuniaResponse
+                {
+                    Data = result.Data.Select(x => new MeninggalDuniaListDto
+                    {
+                        Id = x.Id,
+                        NoPengajuan = x.NoPengajuan,
+                        TanggalPengajuan = x.TanggalPengajuan,
+                        NamaMahasiswa = x.NamaMahasiswa,
+                        Nim = x.Nim,
+                        Prodi = x.Prodi,
+                        NomorSK = x.NomorSK,
+                        Status = x.Status
+                    }).ToList(),
+                    TotalData = result.TotalData,
+                    TotalHalaman = (int)Math.Ceiling((double)result.TotalData / req.PageSize)
+                });
             }
             catch (Exception ex)
             {
@@ -44,26 +58,24 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-
-
         [HttpGet("mahasiswa")]
         public async Task<IActionResult> GetMahasiswa([FromQuery] string? search = null)
         {
-            var data = await _service.GetMahasiswaListAsync(search);
+            var data = await _repository.GetMahasiswaListAsync(search);
             return Ok(data);
         }
 
         [HttpGet("mahasiswa-dropdown")]
         public async Task<IActionResult> GetMahasiswaDropdown()
         {
-            var data = await _service.GetMahasiswaDropdownAsync();
+            var data = await _repository.GetMahasiswaDropdownSPAsync();
             return Ok(data);
         }
 
         [HttpGet("mahasiswa/{mhsId}")]
         public async Task<IActionResult> GetMahasiswaDetail(string mhsId)
         {
-            var data = await _service.GetMahasiswaDetailAsync(mhsId);
+            var data = await _repository.GetMahasiswaDetailAsync(mhsId);
             if (data == null)
                 return NotFound(new { message = "Data mahasiswa tidak ditemukan" });
             
@@ -73,7 +85,7 @@ namespace astratech_apps_backend.Controllers
         [HttpGet("mahasiswa/{mhsId}/prodi")]
         public async Task<IActionResult> GetMahasiswaProdi(string mhsId)
         {
-            var data = await _service.GetMahasiswaProdiAsync(mhsId);
+            var data = await _repository.GetMahasiswaProdiSPAsync(mhsId);
             if (data == null)
                 return NotFound(new { message = "Data prodi mahasiswa tidak ditemukan" });
             
@@ -83,12 +95,9 @@ namespace astratech_apps_backend.Controllers
         [HttpGet("program-studi")]
         public async Task<IActionResult> GetProgramStudi()
         {
-            var data = await _service.GetProgramStudiListAsync();
+            var data = await _repository.GetProgramStudiListAsync();
             return Ok(data);
         }
-
-
-
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetDetail(string id)
@@ -97,7 +106,7 @@ namespace astratech_apps_backend.Controllers
             {
                 id = Uri.UnescapeDataString(id);
                 
-                var data = await _service.GetDetailAsync(id);
+                var data = await _repository.GetDetailAsync(id);
 
                 if (data == null)
                     return NotFound(new { message = $"Data dengan ID '{id}' tidak ditemukan" });
@@ -110,9 +119,6 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-
-
-       
         [HttpGet("file/{filename}")]
         public IActionResult DownloadFile(string filename)
         {
@@ -163,10 +169,6 @@ namespace astratech_apps_backend.Controllers
             };
         }
 
-
-
-
-
         [HttpPost]
         public async Task<IActionResult> Create([FromForm] CreateMeninggalDuniaRequest dto)
         {
@@ -194,7 +196,7 @@ namespace astratech_apps_backend.Controllers
             }
 
             var createdBy = HttpContext.Items[userIdKey]?.ToString() ?? systemUser;
-            var id = await _service.CreateAsync(dto, createdBy);
+            var id = await _repository.CreateAsync(dto, createdBy);
             return Ok(new { id });
         }
 
@@ -207,7 +209,7 @@ namespace astratech_apps_backend.Controllers
                 const string systemUser = "system";
                 
                 var updatedBy = HttpContext.Items[userIdKey]?.ToString() ?? systemUser;
-                var officialId = await _service.FinalizeAsync(draftId, updatedBy);
+                var officialId = await _repository.FinalizeAsync(draftId, updatedBy);
                 
                 if (string.IsNullOrEmpty(officialId))
                 {
@@ -233,8 +235,6 @@ namespace astratech_apps_backend.Controllers
                 });
             }
         }
-
-        
 
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(string id, [FromForm] UpdateMeninggalDuniaRequest dto)
@@ -270,7 +270,7 @@ namespace astratech_apps_backend.Controllers
                     }
                 }
 
-                var success = await _service.UpdateAsync(id, dto, updatedBy);
+                var success = await _repository.UpdateAsync(id, dto, updatedBy);
 
                 if (!success)
                 {
@@ -351,7 +351,39 @@ namespace astratech_apps_backend.Controllers
                     return BadRequest(new { message = "Ukuran file SPKB maksimal 10MB." });
                 }
 
-                var result = await _service.UploadSKAsync(request.MduId, request.SK, request.SKPB, request.ModifiedBy);
+                // Save files and get file paths
+                string skFilePath = "";
+                string spkbFilePath = "";
+
+                // Save SK file
+                if (request.SK != null)
+                {
+                    var skFileName = $"SK_{request.MduId}_{DateTime.Now:yyyyMMddHHmmss}_{request.SK.FileName}";
+                    var skPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads/meninggal", skFileName);
+                    Directory.CreateDirectory(Path.GetDirectoryName(skPath)!);
+                    
+                    using (var stream = new FileStream(skPath, FileMode.Create))
+                    {
+                        await request.SK.CopyToAsync(stream);
+                    }
+                    skFilePath = skFileName;
+                }
+
+                // Save SPKB file
+                if (request.SKPB != null)
+                {
+                    var spkbFileName = $"SPKB_{request.MduId}_{DateTime.Now:yyyyMMddHHmmss}_{request.SKPB.FileName}";
+                    var spkbPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads/meninggal", spkbFileName);
+                    Directory.CreateDirectory(Path.GetDirectoryName(spkbPath)!);
+                    
+                    using (var stream = new FileStream(spkbPath, FileMode.Create))
+                    {
+                        await request.SKPB.CopyToAsync(stream);
+                    }
+                    spkbFilePath = spkbFileName;
+                }
+
+                var result = await _repository.UploadSKAsync(request.MduId, skFilePath, spkbFilePath, request.ModifiedBy);
 
                 if (!result)
                 {
@@ -377,8 +409,6 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-
-
         [HttpDelete("{id}")]
         public async Task<IActionResult> SoftDelete(string id)
         {
@@ -387,16 +417,13 @@ namespace astratech_apps_backend.Controllers
             
             var updatedBy = HttpContext.Items[userIdKey]?.ToString() ?? systemUser;
 
-            var result = await _service.SoftDeleteAsync(id, updatedBy);
+            var result = await _repository.SoftDeleteAsync(id, updatedBy);
 
             if (!result)
                 return BadRequest(new { message = "Gagal menghapus data." });
 
             return Ok(new { message = "Data meninggal dunia berhasil dihapus (soft delete)." });
         }
-
-
-
 
         [HttpPut("approve/{id}")]
         public async Task<IActionResult> Approve(string id, [FromBody] ApproveMeninggalDuniaRequest dto)
@@ -405,8 +432,7 @@ namespace astratech_apps_backend.Controllers
             {
                 id = Uri.UnescapeDataString(id);
                 
-                
-                var detectedRole = await _service.DetectUserRoleAsync(dto.Username);
+                var detectedRole = await _repository.DetectUserRoleAsync(dto.Username);
                 if (string.IsNullOrEmpty(detectedRole))
                 {
                     return BadRequest(new { 
@@ -415,10 +441,9 @@ namespace astratech_apps_backend.Controllers
                     });
                 }
                 
-                
                 dto.Role = detectedRole;
                 
-                var result = await _service.ApproveAsync(id, dto);
+                var result = await _repository.ApproveAsync(id, dto);
 
                 if (!result)
                 {
@@ -455,7 +480,7 @@ namespace astratech_apps_backend.Controllers
             {
                 id = Uri.UnescapeDataString(id);
                 
-                var detectedRole = await _service.DetectUserRoleAsync(dto.Username);
+                var detectedRole = await _repository.DetectUserRoleAsync(dto.Username);
                 if (string.IsNullOrEmpty(detectedRole))
                 {
                     return BadRequest(new { 
@@ -464,10 +489,9 @@ namespace astratech_apps_backend.Controllers
                     });
                 }
                 
-                
                 dto.Role = detectedRole;
                 
-                var success = await _service.RejectAsync(id, dto);
+                var success = await _repository.RejectAsync(id, dto);
 
                 if (!success)
                 {
@@ -498,24 +522,26 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-
         [HttpGet("Riwayat")]
         public async Task<IActionResult> GetRiwayat([FromQuery] GetRiwayatMeninggalDuniaRequest req)
         {
-            return Ok(await _service.GetRiwayatAsync(req));
+            var result = await _repository.GetRiwayatAsync(req);
+            return Ok(new GetRiwayatMeninggalDuniaResponse
+            {
+                Data = result.Data.ToList(),
+                TotalData = result.TotalData,
+                TotalHalaman = (int)Math.Ceiling((double)result.TotalData / (req.PageSize > 0 ? req.PageSize : 50))
+            });
         }
-            
 
         [HttpGet("riwayat/excel")]
-        [ProducesResponseType(typeof(FileResult), 200)]
         public async Task<IActionResult> GetRiwayatExcel(
-        [FromQuery] string sort = "",
-        [FromQuery] string konsentrasi = ""
-        )
+            [FromQuery] string sort = "",
+            [FromQuery] string konsentrasi = "")
         {
             try
             {
-                var data = await _service.GetRiwayatExcelAsync(sort, konsentrasi);
+                var data = await _repository.GetRiwayatExcelAsync(sort, konsentrasi);
                 
                 using var workbook = new ClosedXML.Excel.XLWorkbook();
                 var worksheet = workbook.Worksheets.Add("Riwayat Meninggal Dunia");
@@ -575,11 +601,7 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        
         [HttpPost("DownloadPdf/{id}")]
-        [ProducesResponseType(typeof(FileResult), 200)]
-        [ProducesResponseType(400)]
-        [ProducesResponseType(403)]
         public async Task<IActionResult> DownloadPdf(string id, [FromQuery] string username, [FromQuery] string role)
         {
             try
@@ -589,7 +611,7 @@ namespace astratech_apps_backend.Controllers
                 var validationResult = ValidateDownloadPdfParameters(username, role);
                 if (validationResult != null) return validationResult;
 
-                var meninggalDetail = await _service.GetDetailAsync(id);
+                var meninggalDetail = await _repository.GetDetailAsync(id);
                 if (meninggalDetail == null)
                 {
                     return NotFound(new { 
@@ -754,6 +776,5 @@ namespace astratech_apps_backend.Controllers
                 });
             }
         }
-
     }
 }

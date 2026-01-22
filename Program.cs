@@ -86,6 +86,8 @@ namespace astratech_apps_backend
             builder.Services.AddScoped<IFAQRepository, FAQRepository>();
             builder.Services.AddScoped<IKriteriaRepository, KriteriaRepository>();
             builder.Services.AddScoped<IRemedialRepository, RemedialRepository>();
+            builder.Services.AddScoped<ICutiAkademikRepository, CutiAkademikRepository>();
+            builder.Services.AddScoped<IMeninggalDuniaRepository, MeninggalDuniaRepository>();
 
             builder.Services.AddScoped<IInstitusiRepository, InstitusiRepository>();
             builder.Services.AddScoped<IJurusanRepository, JurusanRepository>();
@@ -98,7 +100,6 @@ namespace astratech_apps_backend
             builder.Services.AddScoped<IPengubahanNilaiRepository, PengubahanNilaiRepository>();
             builder.Services.AddScoped<IPerwalianRepository, PerwalianRepository>();
             builder.Services.AddScoped<IPendaftaranWisudaRepository, PendaftaranWisudaRepository>();
-            builder.Services.AddScoped<QrGeneratorService>();
 
             builder.Services.AddScoped<IKuliahPenggantiRepository, KuliahPenggantiRepository>();
             builder.Services.AddScoped<IJadwalUjianRepository, JadwalUjianRepository>();
