@@ -1,0 +1,9 @@
+
+namespace astratech_apps_backend.DTOs.KuliahPengganti
+{
+    public class GetMataKuliahKPDto
+    {
+        public string MataKuliahId { get; set; } = string.Empty;
+        public string NamaMataKuliah { get; set; } = string.Empty;
+    }
+}
