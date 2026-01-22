@@ -20,7 +20,7 @@ namespace astratech_apps_backend.Controllers
         public async Task<IActionResult> CreateDraftCutiAkademik([FromBody] CreateDraftCutiAkademikRequest dto)
         {
             var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
-            const int maxFileSize = 10 * 1024 * 1024; // 10MB
+            const int maxFileSize = 10 * 1024 * 1024; 
 
             if (dto.LampiranSuratPengajuan != null)
             {
@@ -189,7 +189,7 @@ namespace astratech_apps_backend.Controllers
             try
             {
                 var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
-                const int maxFileSize = 10 * 1024 * 1024; // 10MB
+                const int maxFileSize = 10 * 1024 * 1024; 
 
                 if (dto.LampiranSuratPengajuan != null)
                 {

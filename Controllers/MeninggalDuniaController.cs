@@ -345,11 +345,9 @@ namespace astratech_apps_backend.Controllers
                     return BadRequest(new { message = "Ukuran file SPKB maksimal 10MB." });
                 }
 
-                // Save files and get file paths
                 string skFilePath = "";
                 string spkbFilePath = "";
 
-                // Save SK file
                 if (request.SK != null)
                 {
                     var skFileName = $"SK_{request.MduId}_{DateTime.Now:yyyyMMddHHmmss}_{request.SK.FileName}";
@@ -363,7 +361,6 @@ namespace astratech_apps_backend.Controllers
                     skFilePath = skFileName;
                 }
 
-                // Save SPKB file
                 if (request.SKPB != null)
                 {
                     var spkbFileName = $"SPKB_{request.MduId}_{DateTime.Now:yyyyMMddHHmmss}_{request.SKPB.FileName}";

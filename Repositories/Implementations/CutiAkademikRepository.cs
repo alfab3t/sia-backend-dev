@@ -391,11 +391,11 @@ namespace astratech_apps_backend.Repositories.Implementations
                 await conn.OpenAsync();
                 await cmd.ExecuteNonQueryAsync();
 
-                return true;   // ?? anggap berhasil jika tidak error
+                return true;   
             }
             catch
             {
-                return false;  // ? hanya kalau SQL benar-benar error
+                return false;  
             }
         }
 
@@ -407,15 +407,11 @@ namespace astratech_apps_backend.Repositories.Implementations
 
             try
             {
-                // =============================
-                // Simpan file terlebih dahulu (sama seperti mahasiswa)
-                // =============================
+                
                 var fileSP = SaveFile(dto.LampiranSuratPengajuan);
                 var fileLampiran = SaveFile(dto.Lampiran);
 
-                // =============================
-                // Gunakan SP khusus untuk prodi dengan parameter yang sudah di-ALTER
-                // =============================
+              
                 var cmd = new SqlCommand("sia_createCutiAkademikByProdi", conn)
                 {
                     CommandType = CommandType.StoredProcedure
@@ -429,12 +425,12 @@ namespace astratech_apps_backend.Repositories.Implementations
                 cmd.Parameters.AddWithValue("@MahasiswaId", dto.MhsId ?? "");
                 cmd.Parameters.AddWithValue("@Menimbang", dto.Menimbang ?? "");
                 cmd.Parameters.AddWithValue("@ApprovalProdi", dto.ApprovalProdi ?? "");
-                cmd.Parameters.AddWithValue("@DraftId", ""); // Tidak digunakan di STEP1
-                cmd.Parameters.AddWithValue("@ModifiedBy", ""); // Tidak digunakan di STEP1
+                cmd.Parameters.AddWithValue("@DraftId", ""); 
+                cmd.Parameters.AddWithValue("@ModifiedBy", ""); 
 
                 await cmd.ExecuteNonQueryAsync();
 
-                // Ambil draft id terbaru yang dibuat oleh SP
+               
                 var getDraftIdCmd = new SqlCommand(@"
                     SELECT TOP 1 cak_id 
                     FROM sia_mscutiakademik 
@@ -447,11 +443,9 @@ namespace astratech_apps_backend.Repositories.Implementations
                 var draftId = await getDraftIdCmd.ExecuteScalarAsync();
                 return draftId?.ToString();
             }
-            catch (SqlException ex) when (ex.Number == 2627) // Primary key violation
+            catch (SqlException ex) when (ex.Number == 2627) 
             {
-                // Jika ada collision, coba lagi dengan retry mechanism
                 
-                // Fallback: gunakan direct insert dengan unique ID
                 return await CreateDraftByProdiDirectAsync(dto, conn);
             }
             catch (Exception)
@@ -462,13 +456,11 @@ namespace astratech_apps_backend.Repositories.Implementations
 
         private async Task<string?> CreateDraftByProdiDirectAsync(CreateDraftCutiAkademikByProdiRequest dto, SqlConnection conn)
         {
-            // =============================
-            // Simpan file terlebih dahulu (sama seperti mahasiswa)
-            // =============================
+           
             var fileSP = SaveFile(dto.LampiranSuratPengajuan);
             var fileLampiran = SaveFile(dto.Lampiran);
 
-            // Generate unique draft ID
+          
             string newDraftId = await GenerateUniqueDraftIdAsync(conn);
 
             var insertSql = @"
@@ -522,26 +514,26 @@ namespace astratech_apps_backend.Repositories.Implementations
 
             try
             {
-                // Gunakan SP khusus prodi untuk generate final ID dengan parameter yang sudah di-ALTER
+                
                 var cmd = new SqlCommand("sia_createCutiAkademikByProdi", conn)
                 {
                     CommandType = CommandType.StoredProcedure
                 };
 
                 cmd.Parameters.AddWithValue("@Step", "STEP2");
-                cmd.Parameters.AddWithValue("@TahunAjaran", ""); // Tidak digunakan di STEP2
-                cmd.Parameters.AddWithValue("@Semester", ""); // Tidak digunakan di STEP2
-                cmd.Parameters.AddWithValue("@LampiranSuratPengajuan", ""); // Tidak digunakan di STEP2
-                cmd.Parameters.AddWithValue("@Lampiran", ""); // Tidak digunakan di STEP2
-                cmd.Parameters.AddWithValue("@MahasiswaId", ""); // Tidak digunakan di STEP2
-                cmd.Parameters.AddWithValue("@Menimbang", ""); // Tidak digunakan di STEP2
-                cmd.Parameters.AddWithValue("@ApprovalProdi", ""); // Tidak digunakan di STEP2
+                cmd.Parameters.AddWithValue("@TahunAjaran", ""); 
+                cmd.Parameters.AddWithValue("@Semester", ""); 
+                cmd.Parameters.AddWithValue("@LampiranSuratPengajuan", ""); 
+                cmd.Parameters.AddWithValue("@Lampiran", ""); 
+                cmd.Parameters.AddWithValue("@MahasiswaId", ""); 
+                cmd.Parameters.AddWithValue("@Menimbang", ""); 
+                cmd.Parameters.AddWithValue("@ApprovalProdi", ""); 
                 cmd.Parameters.AddWithValue("@DraftId", dto.DraftId ?? "");
                 cmd.Parameters.AddWithValue("@ModifiedBy", dto.ModifiedBy ?? "");
 
                 await cmd.ExecuteNonQueryAsync();
 
-                // SP akan return final ID di akhir
+                
                 var cmd2 = new SqlCommand(
                     @"SELECT TOP 1 cak_id 
                       FROM sia_mscutiakademik 
@@ -564,13 +556,11 @@ namespace astratech_apps_backend.Repositories.Implementations
             await using var conn = new SqlConnection(_conn);
             await conn.OpenAsync();
             
-            // Gunakan stored procedure dengan parameter yang sudah di-ALTER (tidak disingkat)
             await using var cmd = new SqlCommand("sia_getDataRiwayatCutiAkademik", conn)
             {
                 CommandType = CommandType.StoredProcedure
             };
 
-            // Parameter sesuai dengan SP yang sudah di-ALTER
             cmd.Parameters.AddWithValue("@UserId", userId ?? "");
             cmd.Parameters.AddWithValue("@Status", status ?? "");
             cmd.Parameters.AddWithValue("@Search", search ?? "");
@@ -606,7 +596,6 @@ namespace astratech_apps_backend.Repositories.Implementations
             await using var conn = new SqlConnection(_conn);
             await conn.OpenAsync();
             
-            // Gunakan stored procedure dengan parameter yang sudah di-ALTER
             await using var cmd = new SqlCommand("sia_getDataRiwayatCutiAkademikExcel", conn)
             {
                 CommandType = CommandType.StoredProcedure
@@ -653,13 +642,7 @@ namespace astratech_apps_backend.Repositories.Implementations
             return fileName;
         }
 
-        // ============================================================
-        // APPROVAL & REJECTION METHODS
-        // ============================================================
-        
-        /// <summary>
-        /// Menyetujui cuti akademik (prodi/wadir1/finance)
-        /// </summary>
+       
         public async Task<bool> ApproveCutiAsync(ApproveCutiAkademikRequest dto)
         {
             try
@@ -667,11 +650,9 @@ namespace astratech_apps_backend.Repositories.Implementations
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
 
-                // 1. Validate record exists and get current status
                 var recordInfo = await GetRecordInfoAsync(conn, dto.Id);
                 if (recordInfo == null) return false;
 
-                // 2. Handle approval based on role
                 return await ProcessApprovalByRoleAsync(conn, dto, recordInfo.Value.currentStatus);
             }
             catch
@@ -714,13 +695,11 @@ namespace astratech_apps_backend.Repositories.Implementations
 
         private async Task<bool> ProcessFinanceApprovalAsync(SqlConnection conn, ApproveCutiAkademikRequest dto, string currentStatus)
         {
-            // Finance approval should change status from "Belum Disetujui Finance" to "Menunggu Upload SK"
             if (currentStatus != "Belum Disetujui Finance")
             {
                 return false;
             }
 
-            // Use stored procedure for finance approval (will auto-generate nomor surat)
             var financeSpCmd = new SqlCommand("sia_setujuiCutiAkademik", conn)
             {
                 CommandType = CommandType.StoredProcedure
@@ -732,7 +711,6 @@ namespace astratech_apps_backend.Repositories.Implementations
 
             await financeSpCmd.ExecuteNonQueryAsync();
 
-            // Verify the update by checking the new status
             return await VerifyFinanceApprovalAsync(conn, dto.Id);
         }
 
@@ -748,7 +726,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 var updatedStatus = verifyReader["cak_status"].ToString();
                 await verifyReader.CloseAsync();
 
-                // Check if status actually changed to "Menunggu Upload SK"
                 return updatedStatus == "Menunggu Upload SK";
             }
             else
@@ -776,7 +753,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 return true;
             }
 
-            // If SP failed, try role-specific direct SQL update as fallback
             return await ProcessDirectSQLFallbackAsync(conn, dto);
         }
 
@@ -812,9 +788,7 @@ namespace astratech_apps_backend.Repositories.Implementations
             };
         }
 
-        /// <summary>
-        /// Menyetujui cuti akademik oleh prodi
-        /// </summary>
+       
         public async Task<bool> ApproveProdiCutiAsync(ApproveCutiAkademikByProdiRequest dto)
         {
             try
@@ -823,7 +797,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
 
-                // First, check if record exists and get current status
                 var checkCmd = new SqlCommand(
                     "SELECT cak_id, cak_status FROM sia_mscutiakademik WHERE cak_id = @id", conn);
                 checkCmd.Parameters.AddWithValue("@id", dto.Id);
@@ -839,7 +812,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 await reader.CloseAsync();
                 
 
-                // Try stored procedure first dengan parameter yang sudah di-ALTER
                 var spCmd = new SqlCommand("sia_setujuiCutiAkademikProdi", conn)
                 {
                     CommandType = CommandType.StoredProcedure
@@ -851,12 +823,10 @@ namespace astratech_apps_backend.Repositories.Implementations
 
                 var spRows = await spCmd.ExecuteNonQueryAsync();
 
-                // Check status after stored procedure execution to verify if it actually changed
                 var newStatusCmd = new SqlCommand("SELECT cak_status FROM sia_mscutiakademik WHERE cak_id = @id", conn);
                 newStatusCmd.Parameters.AddWithValue("@id", dto.Id);
                 var newStatus = (await newStatusCmd.ExecuteScalarAsync())?.ToString();
                 
-                // Consider approval successful if status changed from the original status
                 bool statusChanged = !string.Equals(currentStatus, newStatus, StringComparison.OrdinalIgnoreCase);
                 
                 if (statusChanged)
@@ -868,7 +838,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                     return true;
                 }
 
-                // If SP failed, try direct SQL update as fallback
                 
                 var directCmd = new SqlCommand(@"
                     UPDATE sia_mscutiakademik 
@@ -890,13 +859,11 @@ namespace astratech_apps_backend.Repositories.Implementations
             }
             catch (Exception)
             {
-                throw; // Re-throw to let controller handle it
+                throw; 
             }
         }
 
-        /// <summary>
-        /// Menolak cuti akademik dengan keterangan
-        /// </summary>
+       
         public async Task<bool> RejectCutiAsync(RejectCutiAkademikRequest dto)
         {
             try
@@ -905,7 +872,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
 
-                // First, check if record exists and get current status
                 var checkCmd = new SqlCommand(
                     "SELECT cak_id, cak_status FROM sia_mscutiakademik WHERE cak_id = @id", conn);
                 checkCmd.Parameters.AddWithValue("@id", dto.Id);
@@ -921,7 +887,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 await reader.CloseAsync();
                 
 
-                // Try stored procedure first dengan parameter yang sudah di-ALTER
                 var spCmd = new SqlCommand("sia_tolakCutiAkademik", conn)
                 {
                     CommandType = CommandType.StoredProcedure
@@ -929,16 +894,14 @@ namespace astratech_apps_backend.Repositories.Implementations
 
                 spCmd.Parameters.AddWithValue("@CutiAkademikId", dto.Id);
                 spCmd.Parameters.AddWithValue("@Role", dto.Role);
-                spCmd.Parameters.AddWithValue("@Keterangan", ""); // Empty keterangan
+                spCmd.Parameters.AddWithValue("@Keterangan", ""); 
 
                 var spRows = await spCmd.ExecuteNonQueryAsync();
 
-                // Check status after stored procedure execution to verify if it actually changed
                 var newStatusCmd = new SqlCommand("SELECT cak_status FROM sia_mscutiakademik WHERE cak_id = @id", conn);
                 newStatusCmd.Parameters.AddWithValue("@id", dto.Id);
                 var newStatus = (await newStatusCmd.ExecuteScalarAsync())?.ToString();
                 
-                // Consider rejection successful if status changed from the original status
                 bool statusChanged = !string.Equals(currentStatus, newStatus, StringComparison.OrdinalIgnoreCase);
                 
                 if (statusChanged)
@@ -950,7 +913,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                     return true;
                 }
 
-                // If SP failed, try direct SQL update as fallback
                 
                 var directCmd = new SqlCommand(@"
                     UPDATE sia_mscutiakademik 
@@ -969,13 +931,11 @@ namespace astratech_apps_backend.Repositories.Implementations
             }
             catch (Exception)
             {
-                throw; // Re-throw to let controller handle it
+                throw; 
             }
         }
 
-        /// <summary>
-        /// Create SK Cuti Akademik - Using stored procedure sia_createSKCutiAkademik
-        /// </summary>
+       
         public async Task<string?> CreateSKAsync(CreateSKRequest dto)
         {
             try
@@ -984,7 +944,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
 
-                // Check if record exists and has correct status
                 var checkCmd = new SqlCommand(@"
                     SELECT cak_id, cak_status, srt_no 
                     FROM sia_mscutiakademik 
@@ -1003,22 +962,20 @@ namespace astratech_apps_backend.Repositories.Implementations
                 await reader.CloseAsync();
                 
 
-                // Validate status - harus sudah disetujui finance untuk bisa create SK
                 if (currentStatus != "Belum Disetujui Finance" && currentStatus != "Menunggu Upload SK")
                 {
                     return null;
                 }
 
-                // Generate nomor SK jika tidak disediakan
                 string noSK = dto.NoSK ?? existingSrtNo;
                 
                 if (string.IsNullOrEmpty(noSK))
                 {
-                    // Generate nomor SK otomatis
+                    
                     var year = DateTime.Now.Year;
                     var month = DateTime.Now.Month;
                     
-                    // Get last SK number for this month
+                    
                     var getLastNoCmd = new SqlCommand(@"
                         SELECT TOP 1 srt_no 
                         FROM sia_mscutiakademik 
@@ -1042,8 +999,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                     noSK = $"{sequence:D3}/SK-CA/{month:D2}/{year}";
                 }
 
-                // Use stored procedure sia_createSKCutiAkademik to finalize SK
-                // (Backend yang generate nomor SK, SP hanya simpan)
+                
                 try
                 {
                     var spCmd = new SqlCommand("sia_createSKCutiAkademik", conn)
@@ -1064,10 +1020,10 @@ namespace astratech_apps_backend.Repositories.Implementations
                 }
                 catch (Exception)
                 {
-                    // Stored procedure failed, continue with fallback approach
+                    
                 }
 
-                // Fallback: Update record dengan nomor SK dan ubah status ke "Menunggu Upload SK"
+               
                 var updateCmd = new SqlCommand(@"
                     UPDATE sia_mscutiakademik 
                     SET srt_no = @noSK,
@@ -1095,10 +1051,7 @@ namespace astratech_apps_backend.Repositories.Implementations
             }
         }
 
-        /// <summary>
-        /// Upload SK Cuti Akademik (untuk admin) - Generate SK number automatically and upload file
-        /// Logika murni backend: Generate nomor SK tanpa simpan ke database (bypass foreign key)
-        /// </summary>
+
         public async Task<bool> UploadSKAsync(UploadSKCutiAkademikRequest dto)
         {
             try
@@ -1107,7 +1060,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
 
-                // First, check if record exists and get current status
                 var checkCmd = new SqlCommand(
                     "SELECT cak_id, cak_status, srt_no FROM sia_mscutiakademik WHERE cak_id = @id", conn);
                 checkCmd.Parameters.AddWithValue("@id", dto.Id);
@@ -1124,13 +1076,11 @@ namespace astratech_apps_backend.Repositories.Implementations
                 await reader.CloseAsync();
                 
 
-                // Allow upload if status is "Menunggu Upload SK" OR "Disetujui" (untuk re-upload)
                 if (currentStatus != "Menunggu Upload SK" && currentStatus != "Disetujui")
                 {
                     return false;
                 }
 
-                // Save file
                 var fileName = SaveFile(dto.FileSK);
                 if (string.IsNullOrEmpty(fileName))
                 {
@@ -1138,10 +1088,8 @@ namespace astratech_apps_backend.Repositories.Implementations
                 }
 
 
-                // Generate SK number untuk keperluan internal/logging (tidak disimpan ke DB)
                 var skNumber = await GenerateSKNumberAsync(conn);
 
-                // Update record WITHOUT srt_no field (bypass foreign key constraint)
                 var updateCmd = new SqlCommand(@"
                     UPDATE sia_mscutiakademik 
                     SET cak_sk = @fileName,
@@ -1166,7 +1114,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 if (rowsAffected > 0)
                 {
                     
-                    // Verify the update worked
                     var verifyCmd = new SqlCommand(
                         "SELECT cak_sk, cak_status FROM sia_mscutiakademik WHERE cak_id = @id", conn);
                     verifyCmd.Parameters.AddWithValue("@id", dto.Id);
@@ -1188,7 +1135,7 @@ namespace astratech_apps_backend.Repositories.Implementations
             }
             catch (Exception)
             {
-                throw; // Re-throw to let controller handle it
+                throw; 
             }
         }
 
@@ -1202,7 +1149,6 @@ namespace astratech_apps_backend.Repositories.Implementations
             }
             catch (Exception)
             {
-                // Emergency fallback
                 var now = DateTime.Now;
                 var romanMonth = ConvertToRoman(now.Month);
                 return $"999/PA-WADIR-I/SKC/{romanMonth}/{now.Year}";
@@ -1275,7 +1221,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 }
             }
             
-            // Fallback with timestamp
             var timestamp = DateTimeOffset.Now.ToUnixTimeSeconds() % 999;
             return $"{timestamp + 500:D3}{skFormat}";
         }
@@ -1299,14 +1244,12 @@ namespace astratech_apps_backend.Repositories.Implementations
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
                 
-                // Try stored procedure first
                 var role = await TryDetectRoleFromStoredProcedureAsync(conn, username);
                 if (!string.IsNullOrEmpty(role))
                 {
                     return role;
                 }
                 
-                // Fallback to direct query
                 return await TryDetectRoleFromDirectQueryAsync(conn, username);
             }
             catch (Exception)
@@ -1370,16 +1313,14 @@ namespace astratech_apps_backend.Repositories.Implementations
             var strMainId = reader["str_main_id"]?.ToString() ?? "";
             var jabMainId = reader["jab_main_id"]?.ToString() ?? "";
             
-            // Updated role detection logic based on jabMainId
             var role = jabMainId switch
             {
-                "4" => "wadir1",                    // Wadir position
-                "6" => "prodi",                     // Prodi position  
-                "1" when username.ToLower().Contains("finance") => "finance", // Finance user
-                _ => "other"                        // Default for other positions
+                "4" => "wadir1",                    
+                "6" => "prodi",                       
+                "1" when username.ToLower().Contains("finance") => "finance", 
+                _ => "other"                       
             };
             
-            // Special case for specific finance users
             if (username.ToLower().Equals("user_finance") && jabMainId == "1" && strMainId == "27")
             {
                 role = "finance";

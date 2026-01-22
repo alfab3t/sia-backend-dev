@@ -10,24 +10,15 @@ namespace astratech_apps_backend.Repositories.Interfaces
         Task<CutiAkademikDetailResponse?> GetDetailAsync(string id);
         Task<bool> UpdateAsync(string id, UpdateCutiAkademikRequest dto);
         Task<bool> DeleteAsync(string id, string modifiedBy);
-        // NEW (PRODI)
         Task<string?> CreateDraftByProdiAsync(CreateDraftCutiAkademikByProdiRequest dto);
         Task<string?> GenerateIdByProdiAsync(GenerateIdFinalCutiAkademikByProdiRequest dto);
         Task<IEnumerable<CutiAkademikListResponse>> GetRiwayatAsync(string userId, string status, string search);
         Task<IEnumerable<CutiAkademikRiwayatExcelResponse>> GetRiwayatExcelAsync(string userId);
-        
-        // APPROVAL & REJECTION
         Task<bool> ApproveCutiAsync(ApproveCutiAkademikRequest dto);
         Task<bool> ApproveProdiCutiAsync(ApproveCutiAkademikByProdiRequest dto);
         Task<bool> RejectCutiAsync(RejectCutiAkademikRequest dto);
-        
-        // ROLE DETECTION
         Task<string> DetectUserRoleAsync(string username);
-        
-        // SK MANAGEMENT
         Task<string?> CreateSKAsync(CreateSKRequest dto);
         Task<bool> UploadSKAsync(UploadSKCutiAkademikRequest dto);
-
-        // other methods...
     }
 }

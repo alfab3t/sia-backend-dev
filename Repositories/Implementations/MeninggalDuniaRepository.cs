@@ -10,13 +10,11 @@ namespace astratech_apps_backend.Repositories.Implementations
     {
         private readonly string _conn = PolmanAstraLibrary.PolmanAstraLibrary.Decrypt(config.GetConnectionString("DefaultConnection")!, Environment.GetEnvironmentVariable("DECRYPT_KEY_CONNECTION_STRING"));
 
-        //CREATE DRAFT
         public async Task<string> CreateAsync(CreateMeninggalDuniaRequest dto, string createdBy)
         {
             throw new NotImplementedException("Use CreateWithMahasiswaDataAsync instead");
         }
 
-        //CREATE WITH MAHASISWA DATA
         public async Task<string> CreateWithMahasiswaDataAsync(string mhsId, string lampiranFileName, MahasiswaDetailDto mahasiswaData, string createdBy)
         {
             await using var conn = new SqlConnection(_conn);
@@ -41,7 +39,6 @@ namespace astratech_apps_backend.Repositories.Implementations
             return draftId?.ToString() ?? "DRAFT_CREATED";
         }
 
-        //GET MAHASISWA DETAIL
         public async Task<MahasiswaDetailDto?> GetMahasiswaDetailAsync(string mhsId)
         {
             await using var conn = new SqlConnection(_conn);
@@ -317,7 +314,6 @@ namespace astratech_apps_backend.Repositories.Implementations
             return list;
         }
 
-        //UPDATE SK
         public async Task<bool> UpdateSKAsync(string id, string sk, string spkb, string updatedBy)
         {
             await using var conn = new SqlConnection(_conn);
@@ -542,7 +538,6 @@ namespace astratech_apps_backend.Repositories.Implementations
 
 
 
-        //READ SEARCH BY ID
         public async Task<MeninggalDunia?> GetByIdAsync(string id)
         {
             await using var conn = new SqlConnection(_conn);
@@ -579,7 +574,6 @@ namespace astratech_apps_backend.Repositories.Implementations
         }
 
 
-        ////UPDATE
         public async Task<bool> UpdateAsync(string id, UpdateMeninggalDuniaRequest dto, string updatedBy)
         {
             try
@@ -638,7 +632,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                     CommandType = CommandType.StoredProcedure
                 };
 
-                // Parameter sesuai dengan SP yang sudah di-ALTER (tidak disingkat)
                 spCmd.Parameters.AddWithValue("@MeninggalDuniaId", id);
                 spCmd.Parameters.AddWithValue("@Lampiran", lampiranValue);
                 spCmd.Parameters.AddWithValue("@ModifiedBy", updatedBy);
@@ -656,7 +649,7 @@ namespace astratech_apps_backend.Repositories.Implementations
 
 
 
-        //DELETE
+        
         public async Task<bool> SoftDeleteAsync(string id, string updatedBy)
         {
             try
@@ -688,7 +681,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                     CommandType = CommandType.StoredProcedure
                 };
 
-                // Parameter sesuai dengan SP yang sudah di-ALTER (tidak disingkat)
                 spCmd.Parameters.AddWithValue("@MeninggalDuniaId", id);
                 spCmd.Parameters.AddWithValue("@ModifiedBy", updatedBy);
 
@@ -703,7 +695,6 @@ namespace astratech_apps_backend.Repositories.Implementations
         }
 
 
-        //UPLOAD SK - Modified to bypass foreign key constraint like CutiAkademik
         public async Task<bool> UploadSKAsync(string id, string sk, string spkb, string updatedBy)
         {
             try
@@ -1107,7 +1098,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                     CommandType = CommandType.StoredProcedure
                 };
 
-                // Parameter sesuai dengan SP yang sudah di-ALTER (tidak disingkat)
                 cmd.Parameters.AddWithValue("@MeninggalDuniaId", id);
 
                 await conn.OpenAsync();
@@ -1147,7 +1137,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 
                 await using var conn = new SqlConnection(_conn);
                 
-                // Get current status before approval
                 var getStatusSql = "SELECT mdu_status FROM sia_msmeninggaldunia WHERE mdu_id = @id";
                 await using var getStatusCmd = new SqlCommand(getStatusSql, conn);
                 getStatusCmd.Parameters.AddWithValue("@id", id);
@@ -1160,7 +1149,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                     return false;
                 }
                 
-                // Execute approval stored procedure
                 await using var cmd = new SqlCommand("sia_setujuiMeninggalDunia", conn)
                 {
                     CommandType = CommandType.StoredProcedure
@@ -1175,10 +1163,8 @@ namespace astratech_apps_backend.Repositories.Implementations
                 var rows = await cmd.ExecuteNonQueryAsync();
                 
                 
-                // Check status after approval to verify if it actually changed
                 var newStatus = (await getStatusCmd.ExecuteScalarAsync())?.ToString();
                 
-                // Consider approval successful if status changed from the original status
                 bool statusChanged = !string.Equals(currentStatus, newStatus, StringComparison.OrdinalIgnoreCase);
                 
                 if (statusChanged)
@@ -1207,7 +1193,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 
                 await using var conn = new SqlConnection(_conn);
                 
-                // Get current status before rejection
                 var getStatusSql = "SELECT mdu_status FROM sia_msmeninggaldunia WHERE mdu_id = @id";
                 await using var getStatusCmd = new SqlCommand(getStatusSql, conn);
                 getStatusCmd.Parameters.AddWithValue("@id", id);
@@ -1220,7 +1205,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                     return false;
                 }
                 
-                // Execute rejection stored procedure
                 await using var cmd = new SqlCommand("sia_tolakMeninggalDunia", conn)
                 {
                     CommandType = CommandType.StoredProcedure
@@ -1235,10 +1219,8 @@ namespace astratech_apps_backend.Repositories.Implementations
                 var result = await cmd.ExecuteNonQueryAsync();
                 
                 
-                // Check status after rejection to verify if it actually changed
                 var newStatus = (await getStatusCmd.ExecuteScalarAsync())?.ToString();
                 
-                // Consider rejection successful if status changed from the original status
                 bool statusChanged = !string.Equals(currentStatus, newStatus, StringComparison.OrdinalIgnoreCase);
                 
                 if (statusChanged)
@@ -1335,7 +1317,6 @@ namespace astratech_apps_backend.Repositories.Implementations
             }
         }
 
-        // ========= STORED PROCEDURE METHODS =========
         public async Task<IEnumerable<MahasiswaDropdownSPDto>> GetMahasiswaDropdownSPAsync()
         {
             await using var conn = new SqlConnection(_conn);
