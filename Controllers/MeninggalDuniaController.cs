@@ -394,8 +394,8 @@ namespace astratech_apps_backend.Controllers
                     message = "Upload SK berhasil. Status meninggal dunia telah diubah menjadi 'Disetujui'. Nomor SK akan ditampilkan otomatis dengan format tahun 2026.",
                     success = true,
                     mduId = request.MduId,
-                    skFileName = request.SK.FileName,
-                    spkbFileName = request.SKPB.FileName,
+                    skFileName = request.SK?.FileName ?? "",
+                    spkbFileName = request.SKPB?.FileName ?? "",
                     modifiedBy = request.ModifiedBy
                 });
             }
