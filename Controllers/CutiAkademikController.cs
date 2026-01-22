@@ -2,8 +2,6 @@
 using astratech_apps_backend.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
-using System.Text;
-using System.Text.Json;
 
 namespace astratech_apps_backend.Controllers
 {
@@ -12,19 +10,14 @@ namespace astratech_apps_backend.Controllers
     public class CutiAkademikController : ControllerBase
     {
         private readonly ICutiAkademikRepository _repository;
-        private readonly IHttpClientFactory _httpClientFactory;
-        private readonly IConfiguration _configuration;
 
-        public CutiAkademikController(ICutiAkademikRepository repository, IHttpClientFactory httpClientFactory, IConfiguration configuration)
+        public CutiAkademikController(ICutiAkademikRepository repository)
         {
             _repository = repository;
-            _httpClientFactory = httpClientFactory;
-            _configuration = configuration;
         }
 
-        [HttpPost("draft")]
-        [HttpPost]
-        public async Task<IActionResult> CreateDraft([FromForm] CreateDraftCutiRequest dto)
+        [HttpPost("CreateDraftCutiAkademik")]
+        public async Task<IActionResult> CreateDraftCutiAkademik([FromBody] CreateDraftCutiAkademikRequest dto)
         {
             var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
             const int maxFileSize = 10 * 1024 * 1024; // 10MB
@@ -63,8 +56,8 @@ namespace astratech_apps_backend.Controllers
             return Ok(new { draftId = id });
         }
 
-        [HttpPut("generate-id")]
-        public async Task<IActionResult> GenerateId([FromBody] GenerateCutiIdRequest dto)
+        [HttpPut("GenerateIdFinalCutiAkademik")]
+        public async Task<IActionResult> GenerateIdFinalCutiAkademik([FromBody] GenerateIdFinalCutiAkademikRequest dto)
         {
             var id = await _repository.GenerateIdAsync(dto);
 
@@ -74,8 +67,8 @@ namespace astratech_apps_backend.Controllers
             return Ok(new { finalId = id });
         }
 
-        [HttpPost("prodi/draft")]
-        public async Task<IActionResult> CreateDraftByProdi([FromForm] CreateCutiProdiRequest dto)
+        [HttpPost("CreateDraftCutiAkademikByProdi")]
+        public async Task<IActionResult> CreateDraftCutiAkademikByProdi([FromBody] CreateDraftCutiAkademikByProdiRequest dto)
         {
             try
             {
@@ -137,8 +130,8 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        [HttpPut("prodi/generate-id")]
-        public async Task<IActionResult> GenerateIdByProdi([FromBody] GenerateCutiProdiIdRequest dto)
+        [HttpPut("GenerateIdFinalCutiAkademikByProdi")]
+        public async Task<IActionResult> GenerateIdFinalCutiAkademikByProdi([FromBody] GenerateIdFinalCutiAkademikByProdiRequest dto)
         {
             try
             {
@@ -167,8 +160,8 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        [HttpGet]
-        public async Task<IActionResult> GetAll(
+        [HttpGet("GetAllCutiAkademik")]
+        public async Task<IActionResult> GetAllCutiAkademik(
             [FromQuery] string mhsId = "%", 
             [FromQuery] string status = "",
             [FromQuery] string userId = "", 
@@ -179,8 +172,8 @@ namespace astratech_apps_backend.Controllers
             return Ok(result);
         }
 
-        [HttpGet("detail")]
-        public async Task<IActionResult> GetDetail([FromQuery] string id)
+        [HttpGet("GetDetailCutiAkademik")]
+        public async Task<IActionResult> GetDetailCutiAkademik([FromQuery] string id)
         {
             var data = await _repository.GetDetailAsync(id);
 
@@ -190,8 +183,8 @@ namespace astratech_apps_backend.Controllers
             return Ok(data);
         }
 
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateDraft(string id, [FromForm] UpdateCutiAkademikRequest dto)
+        [HttpPut("UpdateCutiAkademik/{id}")]
+        public async Task<IActionResult> UpdateCutiAkademik(string id, [FromBody] UpdateCutiAkademikRequest dto)
         {
             try
             {
@@ -260,8 +253,8 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(string id)
+        [HttpDelete("DeleteCutiAkademik/{id}")]
+        public async Task<IActionResult> DeleteCutiAkademik(string id)
         {
             var modifiedBy = HttpContext.Items["UserId"]?.ToString() ?? "system";
 
@@ -273,8 +266,8 @@ namespace astratech_apps_backend.Controllers
             return Ok(new { message = "Cuti Akademik berhasil dihapus." });
         }
 
-        [HttpGet("riwayat")]
-        public async Task<IActionResult> GetRiwayat(
+        [HttpGet("GetRiwayatCutiAkademik")]
+        public async Task<IActionResult> GetRiwayatCutiAkademik(
             [FromQuery] string userId = "", 
             [FromQuery] string status = "", 
             [FromQuery] string search = "")
@@ -283,8 +276,8 @@ namespace astratech_apps_backend.Controllers
             return Ok(result);
         }
 
-        [HttpGet("riwayat/excel")]
-        public async Task<IActionResult> GetRiwayatExcel([FromQuery] string userId = "")
+        [HttpGet("ExportRiwayatCutiAkademikToExcel")]
+        public async Task<IActionResult> ExportRiwayatCutiAkademikToExcel([FromQuery] string userId = "")
         {
             try
             {
@@ -353,8 +346,8 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        [HttpGet("file/{filename}")]
-        public IActionResult DownloadFile(string filename)
+        [HttpGet("DownloadFileCutiAkademik/{filename}")]
+        public IActionResult DownloadFileCutiAkademik(string filename)
         {
             var path = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads/cuti", filename);
 
@@ -365,8 +358,8 @@ namespace astratech_apps_backend.Controllers
             return File(fileBytes, "application/octet-stream", filename);
         }
 
-        [HttpPut("approve")]
-        public async Task<IActionResult> ApproveCuti([FromBody] ApproveCutiAkademikRequest dto)
+        [HttpPut("ApproveCutiAkademik")]
+        public async Task<IActionResult> ApproveCutiAkademik([FromBody] ApproveCutiAkademikRequest dto)
         {
             try
             {
@@ -419,8 +412,8 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        [HttpPut("approve/prodi")]
-        public async Task<IActionResult> ApproveProdiCuti([FromBody] ApproveProdiCutiRequest dto)
+        [HttpPut("ApproveCutiAkademikByProdi")]
+        public async Task<IActionResult> ApproveCutiAkademikByProdi([FromBody] ApproveCutiAkademikByProdiRequest dto)
         {
             try
             {
@@ -466,8 +459,8 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        [HttpPut("reject")]
-        public async Task<IActionResult> RejectCuti([FromBody] RejectCutiAkademikRequest dto)
+        [HttpPut("RejectCutiAkademik")]
+        public async Task<IActionResult> RejectCutiAkademik([FromBody] RejectCutiAkademikRequest dto)
         {
             try
             {
@@ -530,8 +523,8 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        [HttpPut("upload-sk")]
-        public async Task<IActionResult> UploadSK([FromForm] UploadSKRequest dto)
+        [HttpPut("UploadSKCutiAkademik")]
+        public async Task<IActionResult> UploadSKCutiAkademik([FromBody] UploadSKCutiAkademikRequest dto)
         {
             try
             {
@@ -594,132 +587,6 @@ namespace astratech_apps_backend.Controllers
                     details = ex.InnerException?.Message
                 });
             }
-        }
-
-        [HttpPost("DownloadPdf/{id}")]
-        public async Task<IActionResult> DownloadPdf(string id, [FromQuery] string username, [FromQuery] string role)
-        {
-            try
-            {
-                id = Uri.UnescapeDataString(id);
-
-                var validationResult = ValidateDownloadPdfParameters(username, role);
-                if (validationResult != null) return validationResult;
-
-                var cutiDetail = await _repository.GetDetailAsync(id);
-                if (cutiDetail == null)
-                {
-                    return NotFound(new { 
-                        message = "Data cuti akademik tidak ditemukan",
-                        id = id,
-                        decodedId = Uri.UnescapeDataString(id),
-                        debug = "GetDetailAsync returned null"
-                    });
-                }
-
-                var roleValidationResult = ValidateRoleAndStatus(role, cutiDetail.Status);
-                if (roleValidationResult != null) return roleValidationResult;
-
-                return await CallReportService(id);
-            }
-            catch (HttpRequestException ex)
-            {
-                return BadRequest($"Error koneksi ke service report: {ex.Message}");
-            }
-            catch (Exception ex)
-            {
-                return BadRequest($"Error sistem: {ex.Message}");
-            }
-        }
-
-        private IActionResult? ValidateDownloadPdfParameters(string username, string role)
-        {
-            if (string.IsNullOrEmpty(username))
-            {
-                return BadRequest("Parameter username harus diisi");
-            }
-
-            if (string.IsNullOrEmpty(role))
-            {
-                return BadRequest("Parameter role harus diisi");
-            }
-
-            return null;
-        }
-
-        private IActionResult? ValidateRoleAndStatus(string role, string? status)
-        {
-            if (string.IsNullOrEmpty(status))
-            {
-                return BadRequest("Status tidak ditemukan");
-            }
-
-            return role switch
-            {
-                "ROL23" when status != "Disetujui" => StatusCode(403, new { 
-                    message = "Mahasiswa hanya dapat cetak SK saat status 'Disetujui'",
-                    currentStatus = status,
-                    requiredStatus = "Disetujui",
-                    role = role
-                }),
-                "ROL21" when status != "Menunggu Upload SK" => StatusCode(403, new { 
-                    message = "Admin Akademik hanya dapat cetak SK saat status 'Menunggu Upload SK'",
-                    currentStatus = status,
-                    requiredStatus = "Menunggu Upload SK",
-                    role = role
-                }),
-                "ROL23" or "ROL21" => null,
-                _ => StatusCode(403, new { 
-                    message = "Role tidak memiliki akses untuk cetak SK",
-                    role = role,
-                    allowedRoles = new[] { "ROL23", "ROL21" }
-                })
-            };
-        }
-
-        private async Task<IActionResult> CallReportService(string id)
-        {
-            var client = _httpClientFactory.CreateClient();
-            var url = _configuration["Key:reportServiceUrl"];
-
-            if (string.IsNullOrEmpty(url))
-            {
-                return BadRequest("URL service report tidak dikonfigurasi");
-            }
-
-            var requestBody = new
-            {
-                reportName = "Report_SK_Cuti_Akademik",
-                parameters = new { id }
-            };
-
-            var content = new StringContent(
-                JsonSerializer.Serialize(requestBody),
-                Encoding.UTF8,
-                "application/json"
-            );
-
-            var response = await client.PostAsync(url, content);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                
-                if (errorContent.Contains("database logon failed") || 
-                    errorContent.Contains("error crystal report"))
-                {
-                    return Ok(new { 
-                        message = "Service report berhasil terhubung", 
-                        status = "connected",
-                        details = "Response menunjukkan koneksi berhasil meskipun ada error database/crystal report"
-                    });
-                }
-                
-                return BadRequest("Gagal mengambil file PDF dari service report");
-            }
-
-            var pdfBytes = await response.Content.ReadAsByteArrayAsync();
-            return File(pdfBytes, "application/pdf", $"SK_Cuti_Akademik_{id}.pdf");
         }
     }
 }

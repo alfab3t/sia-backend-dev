@@ -1,8 +1,8 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 
 namespace astratech_apps_backend.DTOs.CutiAkademik
 {
-    public class CreateDraftCutiRequest
+    public class CreateDraftCutiAkademikRequest
     {
         public string MhsId { get; set; } = string.Empty;
         public string TahunAjaran { get; set; } = string.Empty;

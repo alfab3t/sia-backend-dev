@@ -1,6 +1,6 @@
-﻿namespace astratech_apps_backend.DTOs.CutiAkademik
+namespace astratech_apps_backend.DTOs.CutiAkademik
 {
-    public class GenerateCutiProdiIdRequest
+    public class GenerateIdFinalCutiAkademikByProdiRequest
     {
         public string DraftId { get; set; } = "";
         public string ModifiedBy { get; set; } = "";

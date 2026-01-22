@@ -17,19 +17,14 @@ namespace astratech_apps_backend.Repositories.Implementations
             );
         }
 
-        // ============================================================
-        // STEP 1 � Create Draft (Menggunakan SP sia_createCutiAkademik)
-        // ============================================================
-        public async Task<string?> CreateDraftAsync(CreateDraftCutiRequest dto)
+        public async Task<string?> CreateDraftAsync(CreateDraftCutiAkademikRequest dto)
         {
             using var conn = new SqlConnection(_conn);
             await conn.OpenAsync();
 
-            // Simpan file terlebih dahulu
             var fileSP = SaveFile(dto.LampiranSuratPengajuan);
             var fileLampiran = SaveFile(dto.Lampiran);
 
-            // Gunakan stored procedure dengan parameter yang sudah di-ALTER
             await using var cmd = new SqlCommand("sia_createCutiAkademik", conn)
             {
                 CommandType = CommandType.StoredProcedure
@@ -41,12 +36,11 @@ namespace astratech_apps_backend.Repositories.Implementations
             cmd.Parameters.AddWithValue("@LampiranSuratPengajuan", fileSP ?? "");
             cmd.Parameters.AddWithValue("@Lampiran", fileLampiran ?? "");
             cmd.Parameters.AddWithValue("@MahasiswaId", dto.MhsId);
-            cmd.Parameters.AddWithValue("@DraftId", ""); // Tidak digunakan di STEP1
-            cmd.Parameters.AddWithValue("@ModifiedBy", ""); // Tidak digunakan di STEP1
+            cmd.Parameters.AddWithValue("@DraftId", "");
+            cmd.Parameters.AddWithValue("@ModifiedBy", "");
 
             await cmd.ExecuteNonQueryAsync();
 
-            // Ambil draft ID yang baru dibuat
             var getDraftIdCmd = new SqlCommand(@"
                 SELECT TOP 1 cak_id 
                 FROM sia_mscutiakademik 
@@ -63,17 +57,13 @@ namespace astratech_apps_backend.Repositories.Implementations
 
 
 
-        // ============================================================
-        // STEP 2 � Generate Final ID (Menggunakan SP sia_createCutiAkademik)
-        // ============================================================
-        public async Task<string?> GenerateIdAsync(GenerateCutiIdRequest dto)
+        public async Task<string?> GenerateIdAsync(GenerateIdFinalCutiAkademikRequest dto)
         {
             try
             {
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
                 
-                // Validate draft record exists and is in Draft status
                 var checkCmd = new SqlCommand(@"
                     SELECT cak_id, cak_status, mhs_id
                     FROM sia_mscutiakademik 
@@ -95,24 +85,22 @@ namespace astratech_apps_backend.Repositories.Implementations
                     throw new InvalidOperationException($"Record dengan ID '{dto.DraftId}' bukan dalam status Draft (status: {status}).");
                 }
                 
-                // Gunakan stored procedure dengan parameter yang sudah di-ALTER
                 await using var cmd = new SqlCommand("sia_createCutiAkademik", conn)
                 {
                     CommandType = CommandType.StoredProcedure
                 };
 
                 cmd.Parameters.AddWithValue("@Step", "STEP2");
-                cmd.Parameters.AddWithValue("@TahunAjaran", ""); // Tidak digunakan di STEP2
-                cmd.Parameters.AddWithValue("@Semester", ""); // Tidak digunakan di STEP2
-                cmd.Parameters.AddWithValue("@LampiranSuratPengajuan", ""); // Tidak digunakan di STEP2
-                cmd.Parameters.AddWithValue("@Lampiran", ""); // Tidak digunakan di STEP2
-                cmd.Parameters.AddWithValue("@MahasiswaId", ""); // Tidak digunakan di STEP2
+                cmd.Parameters.AddWithValue("@TahunAjaran", "");
+                cmd.Parameters.AddWithValue("@Semester", "");
+                cmd.Parameters.AddWithValue("@LampiranSuratPengajuan", "");
+                cmd.Parameters.AddWithValue("@Lampiran", "");
+                cmd.Parameters.AddWithValue("@MahasiswaId", "");
                 cmd.Parameters.AddWithValue("@DraftId", dto.DraftId);
                 cmd.Parameters.AddWithValue("@ModifiedBy", dto.ModifiedBy);
 
                 await cmd.ExecuteNonQueryAsync();
                 
-                // Ambil final ID yang baru dibuat
                 var getFinalIdCmd = new SqlCommand(@"
                     SELECT cak_id 
                     FROM sia_mscutiakademik 
@@ -136,19 +124,14 @@ namespace astratech_apps_backend.Repositories.Implementations
             }
         }
 
-        // =============================
-        // Helper method untuk generate unique draft ID
-        // =============================
         private async Task<string> GenerateUniqueDraftIdAsync(SqlConnection conn)
         {
             for (int attempt = 0; attempt < 10; attempt++)
             {
-                // Generate ID berdasarkan timestamp + random untuk menghindari collision
                 var timestamp = DateTimeOffset.Now.ToUnixTimeSeconds();
                 var random = new Random().Next(100, 999);
                 var candidateId = $"{timestamp}{random}";
 
-                // Cek apakah ID sudah ada
                 var checkCmd = new SqlCommand("SELECT COUNT(*) FROM sia_mscutiakademik WHERE cak_id = @id", conn);
                 checkCmd.Parameters.AddWithValue("@id", candidateId);
 
@@ -159,13 +142,9 @@ namespace astratech_apps_backend.Repositories.Implementations
                 }
             }
 
-            // Fallback: gunakan GUID jika semua attempt gagal
             return Guid.NewGuid().ToString("N")[..10];
         }
 
-        // ============================================================
-        // Helper: Convert Month to Roman (Same as SP fnConvertIntToRoman)
-        // ============================================================
         private string ConvertToRoman(int month)
         {
             return month switch
@@ -186,10 +165,6 @@ namespace astratech_apps_backend.Repositories.Implementations
             };
         }
 
-        // ============================================================
-        // GET ALL DATA
-        // SP: sia_getDataCutiAkademik
-        // ============================================================
         public async Task<IEnumerable<CutiAkademikListResponse>> GetAllAsync(
             string mhsId, string status, string userId, string role, string search = "")
         {
@@ -198,13 +173,11 @@ namespace astratech_apps_backend.Repositories.Implementations
             await using var conn = new SqlConnection(_conn);
             await conn.OpenAsync();
             
-            // Gunakan stored procedure dengan parameter yang sudah di-ALTER (tidak disingkat)
             await using var cmd = new SqlCommand("sia_getDataCutiAkademik", conn)
             {
                 CommandType = CommandType.StoredProcedure
             };
 
-            // Parameter sesuai dengan SP yang sudah di-ALTER
             cmd.Parameters.AddWithValue("@MahasiswaId", mhsId ?? "");
             cmd.Parameters.AddWithValue("@Status", status ?? "");
             cmd.Parameters.AddWithValue("@UserId", userId ?? "");
@@ -234,15 +207,11 @@ namespace astratech_apps_backend.Repositories.Implementations
             return result;
         }
 
-        // ============================================================
-        // GET DETAIL - Menggunakan Stored Procedure
-        // ============================================================
         public async Task<CutiAkademikDetailResponse?> GetDetailAsync(string id)
         {
             await using var conn = new SqlConnection(_conn);
             await conn.OpenAsync();
 
-            // Gunakan stored procedure dengan parameter yang sudah di-ALTER
             await using var cmd = new SqlCommand("sia_detailCutiAkademik", conn)
             {
                 CommandType = CommandType.StoredProcedure
@@ -289,23 +258,17 @@ namespace astratech_apps_backend.Repositories.Implementations
         }
 
 
-        // ============================================================
-        // UPDATE / EDIT CUTI (Hybrid: SP untuk final ID, Direct SQL untuk draft ID)
-        // ============================================================
         public async Task<bool> UpdateAsync(string id, UpdateCutiAkademikRequest dto)
         {
             await using var conn = new SqlConnection(_conn);
             await conn.OpenAsync();
 
-            // 1. Validate and get existing data
             var existingData = await GetExistingDataAsync(conn, id);
             if (existingData == null)
                 throw new ArgumentException($"Data dengan ID {id} tidak ditemukan.");
 
-            // 2. Handle file uploads
             var fileData = await HandleFileUploadsAsync(dto, existingData);
 
-            // 3. Update based on ID type
             return await UpdateBasedOnIdTypeAsync(conn, id, dto, fileData);
         }
 
@@ -412,9 +375,6 @@ namespace astratech_apps_backend.Repositories.Implementations
         }
 
 
-        // ============================================================
-        // DELETE (Soft Delete � SP: sia_deleteCutiAkademik)
-        // ============================================================
         public async Task<bool> DeleteAsync(string id, string modifiedBy)
         {
             try
@@ -425,7 +385,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                     CommandType = CommandType.StoredProcedure
                 };
 
-                // Gunakan parameter yang sudah di-ALTER (tidak disingkat)
                 cmd.Parameters.AddWithValue("@CutiAkademikId", id);
                 cmd.Parameters.AddWithValue("@ModifiedBy", modifiedBy);
 
@@ -441,10 +400,7 @@ namespace astratech_apps_backend.Repositories.Implementations
         }
 
 
-        // ---------------------------------------------------------
-        // STEP 1 � Create Draft by Prodi (menggunakan SP khusus prodi)
-        // ---------------------------------------------------------
-        public async Task<string?> CreateDraftByProdiAsync(CreateCutiProdiRequest dto)
+        public async Task<string?> CreateDraftByProdiAsync(CreateDraftCutiAkademikByProdiRequest dto)
         {
             await using var conn = new SqlConnection(_conn);
             await conn.OpenAsync();
@@ -504,10 +460,7 @@ namespace astratech_apps_backend.Repositories.Implementations
             }
         }
 
-        // ---------------------------------------------------------
-        // Fallback method untuk prodi jika SP gagal
-        // ---------------------------------------------------------
-        private async Task<string?> CreateDraftByProdiDirectAsync(CreateCutiProdiRequest dto, SqlConnection conn)
+        private async Task<string?> CreateDraftByProdiDirectAsync(CreateDraftCutiAkademikByProdiRequest dto, SqlConnection conn)
         {
             // =============================
             // Simpan file terlebih dahulu (sama seperti mahasiswa)
@@ -562,10 +515,7 @@ namespace astratech_apps_backend.Repositories.Implementations
             return newDraftId;
         }
 
-        // ---------------------------------------------------------
-        // STEP 2 � Generate Final ID (After Draft) by Prodi
-        // ---------------------------------------------------------
-        public async Task<string?> GenerateIdByProdiAsync(GenerateCutiProdiIdRequest dto)
+        public async Task<string?> GenerateIdByProdiAsync(GenerateIdFinalCutiAkademikByProdiRequest dto)
         {
             await using var conn = new SqlConnection(_conn);
             await conn.OpenAsync();
@@ -865,7 +815,7 @@ namespace astratech_apps_backend.Repositories.Implementations
         /// <summary>
         /// Menyetujui cuti akademik oleh prodi
         /// </summary>
-        public async Task<bool> ApproveProdiCutiAsync(ApproveProdiCutiRequest dto)
+        public async Task<bool> ApproveProdiCutiAsync(ApproveCutiAkademikByProdiRequest dto)
         {
             try
             {
@@ -1149,7 +1099,7 @@ namespace astratech_apps_backend.Repositories.Implementations
         /// Upload SK Cuti Akademik (untuk admin) - Generate SK number automatically and upload file
         /// Logika murni backend: Generate nomor SK tanpa simpan ke database (bypass foreign key)
         /// </summary>
-        public async Task<bool> UploadSKAsync(UploadSKRequest dto)
+        public async Task<bool> UploadSKAsync(UploadSKCutiAkademikRequest dto)
         {
             try
             {

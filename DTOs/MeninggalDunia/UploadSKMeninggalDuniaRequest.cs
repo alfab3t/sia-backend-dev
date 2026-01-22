@@ -1,6 +1,6 @@
-﻿namespace astratech_apps_backend.DTOs.MeninggalDunia
+namespace astratech_apps_backend.DTOs.MeninggalDunia
 {
-    public class UploadSKMeninggalRequest
+    public class UploadSKMeninggalDuniaRequest
     {
         public string MduId { get; set; } = "";
         public IFormFile? SK { get; set; }        

@@ -2,8 +2,6 @@ using astratech_apps_backend.DTOs.MeninggalDunia;
 using astratech_apps_backend.Repositories.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Text;
-using System.Text.Json;
 
 namespace astratech_apps_backend.Controllers
 {
@@ -12,18 +10,14 @@ namespace astratech_apps_backend.Controllers
     public class MeninggalDuniaController : ControllerBase
     {
         private readonly IMeninggalDuniaRepository _repository;
-        private readonly IHttpClientFactory _httpClientFactory;
-        private readonly IConfiguration _configuration;
 
-        public MeninggalDuniaController(IMeninggalDuniaRepository repository, IHttpClientFactory httpClientFactory, IConfiguration configuration)
+        public MeninggalDuniaController(IMeninggalDuniaRepository repository)
         {
             _repository = repository;
-            _httpClientFactory = httpClientFactory;
-            _configuration = configuration;
         }
 
-        [HttpGet("GetAll")]
-        public async Task<IActionResult> GetAll([FromQuery] GetAllMeninggalDuniaRequest req)
+        [HttpGet("GetAllMeninggalDunia")]
+        public async Task<IActionResult> GetAllMeninggalDunia([FromQuery] GetAllMeninggalDuniaRequest req)
         {
             try
             {
@@ -58,22 +52,22 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        [HttpGet("mahasiswa")]
-        public async Task<IActionResult> GetMahasiswa([FromQuery] string? search = null)
+        [HttpGet("GetMahasiswaListForMeninggalDunia")]
+        public async Task<IActionResult> GetMahasiswaListForMeninggalDunia([FromQuery] string? search = null)
         {
             var data = await _repository.GetMahasiswaListAsync(search);
             return Ok(data);
         }
 
-        [HttpGet("mahasiswa-dropdown")]
-        public async Task<IActionResult> GetMahasiswaDropdown()
+        [HttpGet("GetMahasiswaDropdownForMeninggalDunia")]
+        public async Task<IActionResult> GetMahasiswaDropdownForMeninggalDunia()
         {
             var data = await _repository.GetMahasiswaDropdownSPAsync();
             return Ok(data);
         }
 
-        [HttpGet("mahasiswa/{mhsId}")]
-        public async Task<IActionResult> GetMahasiswaDetail(string mhsId)
+        [HttpGet("GetMahasiswaDetailForMeninggalDunia/{mhsId}")]
+        public async Task<IActionResult> GetMahasiswaDetailForMeninggalDunia(string mhsId)
         {
             var data = await _repository.GetMahasiswaDetailAsync(mhsId);
             if (data == null)
@@ -82,8 +76,8 @@ namespace astratech_apps_backend.Controllers
             return Ok(data);
         }
 
-        [HttpGet("mahasiswa/{mhsId}/prodi")]
-        public async Task<IActionResult> GetMahasiswaProdi(string mhsId)
+        [HttpGet("GetMahasiswaProdiForMeninggalDunia/{mhsId}")]
+        public async Task<IActionResult> GetMahasiswaProdiForMeninggalDunia(string mhsId)
         {
             var data = await _repository.GetMahasiswaProdiSPAsync(mhsId);
             if (data == null)
@@ -92,15 +86,15 @@ namespace astratech_apps_backend.Controllers
             return Ok(data);
         }
 
-        [HttpGet("program-studi")]
-        public async Task<IActionResult> GetProgramStudi()
+        [HttpGet("GetProgramStudiListForMeninggalDunia")]
+        public async Task<IActionResult> GetProgramStudiListForMeninggalDunia()
         {
             var data = await _repository.GetProgramStudiListAsync();
             return Ok(data);
         }
 
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetDetail(string id)
+        [HttpGet("GetDetailMeninggalDunia/{id}")]
+        public async Task<IActionResult> GetDetailMeninggalDunia(string id)
         {
             try
             {
@@ -119,8 +113,8 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        [HttpGet("file/{filename}")]
-        public IActionResult DownloadFile(string filename)
+        [HttpGet("DownloadFileMeninggalDunia/{filename}")]
+        public IActionResult DownloadFileMeninggalDunia(string filename)
         {
             const string uploadsFolder = "uploads";
             const string meninggalFolder = "meninggal";
@@ -169,11 +163,11 @@ namespace astratech_apps_backend.Controllers
             };
         }
 
-        [HttpPost]
-        public async Task<IActionResult> Create([FromForm] CreateMeninggalDuniaRequest dto)
+        [HttpPost("CreateMeninggalDunia")]
+        public async Task<IActionResult> CreateMeninggalDunia([FromForm] CreateMeninggalDuniaRequest dto)
         {
             if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+                return BadRequest(new { message = "Data yang dikirim tidak valid", errors = ModelState });
 
             var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
             const int maxFileSize = 10 * 1024 * 1024; 
@@ -200,8 +194,8 @@ namespace astratech_apps_backend.Controllers
             return Ok(new { id });
         }
 
-        [HttpPost("finalize/{draftId}")]
-        public async Task<IActionResult> Finalize(string draftId)
+        [HttpPost("FinalizeDraftMeninggalDunia/{draftId}")]
+        public async Task<IActionResult> FinalizeDraftMeninggalDunia(string draftId)
         {
             try
             {
@@ -236,8 +230,8 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Update(string id, [FromForm] UpdateMeninggalDuniaRequest dto)
+        [HttpPut("UpdateMeninggalDunia/{id}")]
+        public async Task<IActionResult> UpdateMeninggalDunia(string id, [FromForm] UpdateMeninggalDuniaRequest dto)
         {
             try
             {
@@ -298,8 +292,8 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        [HttpPut("upload-sk")]
-        public async Task<IActionResult> UploadSK([FromForm] UploadSKMeninggalRequest request)
+        [HttpPut("UploadSKMeninggalDunia")]
+        public async Task<IActionResult> UploadSKMeninggalDunia([FromForm] UploadSKMeninggalDuniaRequest request)
         {
             try
             {
@@ -409,8 +403,8 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> SoftDelete(string id)
+        [HttpDelete("DeleteMeninggalDunia/{id}")]
+        public async Task<IActionResult> DeleteMeninggalDunia(string id)
         {
             const string userIdKey = "UserId";
             const string systemUser = "system";
@@ -425,8 +419,8 @@ namespace astratech_apps_backend.Controllers
             return Ok(new { message = "Data meninggal dunia berhasil dihapus (soft delete)." });
         }
 
-        [HttpPut("approve/{id}")]
-        public async Task<IActionResult> Approve(string id, [FromBody] ApproveMeninggalDuniaRequest dto)
+        [HttpPut("ApproveMeninggalDunia/{id}")]
+        public async Task<IActionResult> ApproveMeninggalDunia(string id, [FromBody] ApproveMeninggalDuniaRequest dto)
         {
             try
             {
@@ -473,8 +467,8 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        [HttpPut("reject/{id}")]
-        public async Task<IActionResult> Reject(string id, [FromBody] RejectMeninggalDuniaRequest dto)
+        [HttpPut("RejectMeninggalDunia/{id}")]
+        public async Task<IActionResult> RejectMeninggalDunia(string id, [FromBody] RejectMeninggalDuniaRequest dto)
         {
             try
             {
@@ -522,8 +516,8 @@ namespace astratech_apps_backend.Controllers
             }
         }
 
-        [HttpGet("Riwayat")]
-        public async Task<IActionResult> GetRiwayat([FromQuery] GetRiwayatMeninggalDuniaRequest req)
+        [HttpGet("GetRiwayatMeninggalDunia")]
+        public async Task<IActionResult> GetRiwayatMeninggalDunia([FromQuery] GetRiwayatMeninggalDuniaRequest req)
         {
             var result = await _repository.GetRiwayatAsync(req);
             return Ok(new GetRiwayatMeninggalDuniaResponse
@@ -534,8 +528,8 @@ namespace astratech_apps_backend.Controllers
             });
         }
 
-        [HttpGet("riwayat/excel")]
-        public async Task<IActionResult> GetRiwayatExcel(
+        [HttpGet("ExportRiwayatMeninggalDuniaToExcel")]
+        public async Task<IActionResult> ExportRiwayatMeninggalDuniaToExcel(
             [FromQuery] string sort = "",
             [FromQuery] string konsentrasi = "")
         {
@@ -597,182 +591,6 @@ namespace astratech_apps_backend.Controllers
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat membuat file Excel.", 
                     error = ex.Message 
-                });
-            }
-        }
-
-        [HttpPost("DownloadPdf/{id}")]
-        public async Task<IActionResult> DownloadPdf(string id, [FromQuery] string username, [FromQuery] string role)
-        {
-            try
-            {
-                id = Uri.UnescapeDataString(id);
-
-                var validationResult = ValidateDownloadPdfParameters(username, role);
-                if (validationResult != null) return validationResult;
-
-                var meninggalDetail = await _repository.GetDetailAsync(id);
-                if (meninggalDetail == null)
-                {
-                    return NotFound(new { 
-                        message = "Data meninggal dunia tidak ditemukan",
-                        id = id,
-                        username = username,
-                        role = role
-                    });
-                }
-
-                var roleValidationResult = ValidateRoleAndStatus(role, meninggalDetail.Status);
-                if (roleValidationResult != null) return roleValidationResult;
-
-                return await CallReportService(id, username, role, "Report_SK_Meninggal_Dunia", "SK_Meninggal_Dunia");
-            }
-            catch (HttpRequestException ex)
-            {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat download PDF SK Meninggal Dunia.",
-                    error = ex.Message,
-                    id = id,
-                    username = username,
-                    role = role
-                });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat download PDF SK Meninggal Dunia.",
-                    error = ex.Message,
-                    id = id,
-                    username = username,
-                    role = role
-                });
-            }
-        }
-
-        private IActionResult? ValidateDownloadPdfParameters(string username, string role)
-        {
-            if (string.IsNullOrEmpty(username))
-            {
-                return BadRequest(new { 
-                    message = "Parameter username harus diisi",
-                    username = username
-                });
-            }
-
-            if (string.IsNullOrEmpty(role))
-            {
-                return BadRequest(new { 
-                    message = "Parameter role harus diisi",
-                    username = username,
-                    role = role
-                });
-            }
-
-            return null;
-        }
-
-        private IActionResult? ValidateRoleAndStatus(string role, string? status)
-        {
-            if (string.IsNullOrEmpty(status))
-            {
-                return BadRequest(new { 
-                    message = "Status tidak ditemukan",
-                    role = role
-                });
-            }
-
-            return role switch
-            {
-                "ROL23" when status != "Disetujui" => StatusCode(403, new { 
-                    message = "Mahasiswa hanya dapat cetak SK saat status 'Disetujui'",
-                    currentStatus = status,
-                    requiredStatus = "Disetujui",
-                    role = role
-                }),
-                "ROL21" when status != "Menunggu Upload SK" => StatusCode(403, new { 
-                    message = "Admin Akademik hanya dapat cetak SK saat status 'Menunggu Upload SK'",
-                    currentStatus = status,
-                    requiredStatus = "Menunggu Upload SK",
-                    role = role
-                }),
-                "ROL23" or "ROL21" => null,
-                _ => StatusCode(403, new { 
-                    message = "Role tidak memiliki akses untuk cetak SK",
-                    role = role,
-                    allowedRoles = new[] { "ROL23", "ROL21" }
-                })
-            };
-        }
-
-        private async Task<IActionResult> CallReportService(string id, string username, string role, string reportName, string filePrefix)
-        {
-            var client = _httpClientFactory.CreateClient();
-            var url = _configuration["Key:reportServiceUrl"];
-
-            if (string.IsNullOrEmpty(url))
-            {
-                return BadRequest(new { 
-                    message = "URL service report tidak dikonfigurasi",
-                    id = id,
-                    username = username,
-                    role = role
-                });
-            }
-
-            var requestBody = new
-            {
-                reportName = reportName,
-                parameters = new { id }
-            };
-
-            var content = new StringContent(
-                JsonSerializer.Serialize(requestBody),
-                Encoding.UTF8,
-                "application/json"
-            );
-
-            try
-            {
-                var response = await client.PostAsync(url, content);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    var errorContent = await response.Content.ReadAsStringAsync();
-                    
-                    if (errorContent.Contains("database logon failed") || 
-                        errorContent.Contains("error crystal report"))
-                    {
-                        return BadRequest(new { 
-                            message = "Service report berhasil terhubung namun terjadi error database/crystal report",
-                            error = errorContent,
-                            connectionStatus = "Connected - Database/Crystal Report Error",
-                            id = id,
-                            username = username,
-                            role = role
-                        });
-                    }
-                    
-                    return BadRequest(new { 
-                        message = "Gagal mengambil file PDF dari service report",
-                        error = errorContent,
-                        statusCode = (int)response.StatusCode,
-                        id = id,
-                        username = username,
-                        role = role
-                    });
-                }
-
-                var pdfBytes = await response.Content.ReadAsByteArrayAsync();
-                return File(pdfBytes, "application/pdf", $"{filePrefix}_{id.Replace("/", "_")}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf");
-            }
-            catch (HttpRequestException ex)
-            {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat download PDF SK Meninggal Dunia.",
-                    error = ex.Message,
-                    id = id,
-                    username = username,
-                    role = role
                 });
             }
         }

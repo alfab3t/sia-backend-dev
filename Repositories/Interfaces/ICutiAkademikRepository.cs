@@ -4,21 +4,21 @@ namespace astratech_apps_backend.Repositories.Interfaces
 {
     public interface ICutiAkademikRepository
     {
-        Task<string?> CreateDraftAsync(CreateDraftCutiRequest dto);
-        Task<string?> GenerateIdAsync(GenerateCutiIdRequest dto);
+        Task<string?> CreateDraftAsync(CreateDraftCutiAkademikRequest dto);
+        Task<string?> GenerateIdAsync(GenerateIdFinalCutiAkademikRequest dto);
         Task<IEnumerable<CutiAkademikListResponse>> GetAllAsync(string mhsId, string status, string userId, string role, string search = "");
         Task<CutiAkademikDetailResponse?> GetDetailAsync(string id);
         Task<bool> UpdateAsync(string id, UpdateCutiAkademikRequest dto);
         Task<bool> DeleteAsync(string id, string modifiedBy);
         // NEW (PRODI)
-        Task<string?> CreateDraftByProdiAsync(CreateCutiProdiRequest dto);
-        Task<string?> GenerateIdByProdiAsync(GenerateCutiProdiIdRequest dto);
+        Task<string?> CreateDraftByProdiAsync(CreateDraftCutiAkademikByProdiRequest dto);
+        Task<string?> GenerateIdByProdiAsync(GenerateIdFinalCutiAkademikByProdiRequest dto);
         Task<IEnumerable<CutiAkademikListResponse>> GetRiwayatAsync(string userId, string status, string search);
         Task<IEnumerable<CutiAkademikRiwayatExcelResponse>> GetRiwayatExcelAsync(string userId);
         
         // APPROVAL & REJECTION
         Task<bool> ApproveCutiAsync(ApproveCutiAkademikRequest dto);
-        Task<bool> ApproveProdiCutiAsync(ApproveProdiCutiRequest dto);
+        Task<bool> ApproveProdiCutiAsync(ApproveCutiAkademikByProdiRequest dto);
         Task<bool> RejectCutiAsync(RejectCutiAkademikRequest dto);
         
         // ROLE DETECTION
@@ -26,7 +26,7 @@ namespace astratech_apps_backend.Repositories.Interfaces
         
         // SK MANAGEMENT
         Task<string?> CreateSKAsync(CreateSKRequest dto);
-        Task<bool> UploadSKAsync(UploadSKRequest dto);
+        Task<bool> UploadSKAsync(UploadSKCutiAkademikRequest dto);
 
         // other methods...
     }

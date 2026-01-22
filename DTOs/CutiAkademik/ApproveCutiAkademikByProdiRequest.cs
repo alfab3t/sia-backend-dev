@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 namespace astratech_apps_backend.DTOs.CutiAkademik
 {
     
-    public class ApproveProdiCutiRequest
+    public class ApproveCutiAkademikByProdiRequest
     {
         
         [Required(ErrorMessage = "ID cuti akademik harus diisi")]

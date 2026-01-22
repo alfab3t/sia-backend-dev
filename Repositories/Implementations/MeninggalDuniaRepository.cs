@@ -13,8 +13,6 @@ namespace astratech_apps_backend.Repositories.Implementations
         //CREATE DRAFT
         public async Task<string> CreateAsync(CreateMeninggalDuniaRequest dto, string createdBy)
         {
-            // This method is kept for backward compatibility
-            // Use CreateWithMahasiswaDataAsync for new implementation
             throw new NotImplementedException("Use CreateWithMahasiswaDataAsync instead");
         }
 
@@ -27,7 +25,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 CommandType = CommandType.StoredProcedure
             };
 
-            // Parameter sesuai dengan SP yang sudah di-ALTER (tidak disingkat)
             cmd.Parameters.AddWithValue("@Step", "STEP1");
             cmd.Parameters.AddWithValue("@Lampiran", lampiranFileName ?? "");
             cmd.Parameters.AddWithValue("@MahasiswaId", mhsId ?? "");
@@ -36,7 +33,6 @@ namespace astratech_apps_backend.Repositories.Implementations
             await conn.OpenAsync();
             await cmd.ExecuteNonQueryAsync();
 
-            // Get the created draft ID (temporary numeric ID)
             var getDraftIdCmd = new SqlCommand(
                 "SELECT TOP 1 mdu_id FROM sia_msmeninggaldunia WHERE mdu_id NOT LIKE '%MD%' ORDER BY mdu_created_date DESC", 
                 conn);
@@ -87,7 +83,6 @@ namespace astratech_apps_backend.Repositories.Implementations
             return null;
         }
 
-        // ========= STEP 2: FINALIZE DRAFT TO OFFICIAL ID =========
         public async Task<string> FinalizeAsync(string draftId, string updatedBy)
         {
             try
@@ -95,7 +90,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
 
-                // First, check if draft exists and is still in draft status
                 var checkSql = "SELECT mdu_status FROM sia_msmeninggaldunia WHERE mdu_id = @draftId";
                 await using var checkCmd = new SqlCommand(checkSql, conn);
                 checkCmd.Parameters.AddWithValue("@draftId", draftId);
@@ -109,23 +103,20 @@ namespace astratech_apps_backend.Repositories.Implementations
                 if (currentStatus != "Draft")
                 {
                     
-                    // If already finalized, try to get the existing official ID
                     if (draftId.Contains("PA/MD"))
                     {
-                        return draftId; // Already an official ID
+                        return draftId;
                     }
                     
                     return "";
                 }
 
-                // Generate new official ID manually
                 var officialId = await GenerateOfficialIdAsync(conn);
                 if (string.IsNullOrEmpty(officialId))
                 {
                     return "";
                 }
 
-                // Update the record with new official ID and status
                 var updateSql = @"
                     UPDATE sia_msmeninggaldunia 
                     SET mdu_id = @officialId,
@@ -248,7 +239,6 @@ namespace astratech_apps_backend.Repositories.Implementations
             };
         }
 
-        // ========= DROPDOWN DATA =========
         public async Task<IEnumerable<MahasiswaDropdownDto>> GetMahasiswaListAsync(string? search = null)
         {
             await using var conn = new SqlConnection(_conn);
@@ -336,7 +326,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 CommandType = CommandType.StoredProcedure
             };
 
-            // Parameter sesuai dengan SP yang sudah di-ALTER (tidak disingkat)
             cmd.Parameters.AddWithValue("@MeninggalDuniaId", id);
             cmd.Parameters.AddWithValue("@SuratKeteranganMeninggalDunia", sk);
             cmd.Parameters.AddWithValue("@SuratKeteranganPernahBerkuliah", spkb);
@@ -358,7 +347,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 CommandType = CommandType.StoredProcedure
             };
 
-            // Parameter sesuai dengan SP yang sudah di-ALTER (tidak disingkat)
             cmd.Parameters.AddWithValue("@Status", status ?? "");
             cmd.Parameters.AddWithValue("@RoleId", roleId ?? "");
 
@@ -373,12 +361,10 @@ namespace astratech_apps_backend.Repositories.Implementations
                     IdAlternative = reader["mdu_id_alternative"]?.ToString() ?? "",
                     MhsId = reader["mhs_id"]?.ToString() ?? "",
                     ApproveDir1By = reader["mdu_approve_dir1_by"]?.ToString() ?? "",
-                    CreatedDate = reader["mdu_created_date"]?.ToString() ?? "",   // varchar(11)
+                    CreatedDate = reader["mdu_created_date"]?.ToString() ?? "",
                     TanggalBuat = reader["tanggal_buat"] as DateTime? ?? DateTime.MinValue,
                     SuratNo = reader["srt_no"]?.ToString() ?? "",
                     Status = reader["mdu_status"]?.ToString() ?? ""
-                    // Field tambahan (mhs_nama, nim, pro_nama) tersedia di SP tapi tidak di-map ke DTO ini
-                    // karena DTO tidak memiliki property tersebut
                 });
             }
 
@@ -601,7 +587,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
 
-                // Handle file upload jika ada
                 string? fileName = null;
                 if (dto.LampiranFile != null)
                 {
@@ -616,17 +601,14 @@ namespace astratech_apps_backend.Repositories.Implementations
                     
                 }
 
-                // Tentukan nilai lampiran yang akan diupdate
                 var lampiranValue = fileName ?? dto.Lampiran ?? "";
 
-                // Update menggunakan direct SQL untuk fleksibilitas
                 var sql = @"
                     UPDATE sia_msmeninggaldunia 
                     SET mdu_lampiran = @lampiran,
                         mdu_modif_by = @updatedBy,
                         mdu_modif_date = GETDATE()";
 
-                // Tambahkan update mhs_id jika disediakan
                 if (!string.IsNullOrEmpty(dto.MhsId))
                 {
                     sql += ", mhs_id = @mhsId";
@@ -651,7 +633,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                     return true;
                 }
 
-                // Fallback ke stored procedure jika direct SQL gagal
                 await using var spCmd = new SqlCommand("sia_editMeninggalDunia", conn)
                 {
                     CommandType = CommandType.StoredProcedure
@@ -683,7 +664,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
                 
-                // Coba dengan query langsung dulu untuk debugging
                 var directSql = @"
                     UPDATE sia_msmeninggaldunia 
                     SET mdu_status = 'Dihapus',
@@ -703,7 +683,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                     return true;
                 }
 
-                // Jika direct SQL gagal, coba stored procedure
                 await using var spCmd = new SqlCommand("sia_deleteMeninggalDunia", conn)
                 {
                     CommandType = CommandType.StoredProcedure
@@ -733,7 +712,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
 
-                // First, check if record exists and get current status
                 var checkCmd = new SqlCommand(
                     "SELECT mdu_id, mdu_status FROM sia_msmeninggaldunia WHERE mdu_id = @id", conn);
                 checkCmd.Parameters.AddWithValue("@id", id);
@@ -749,16 +727,13 @@ namespace astratech_apps_backend.Repositories.Implementations
                 await reader.CloseAsync();
                 
 
-                // Allow upload if status is "Menunggu Upload SK" OR "Disetujui" (untuk re-upload)
                 if (currentStatus != "Menunggu Upload SK" && currentStatus != "Disetujui")
                 {
                     return false;
                 }
 
-                // Generate SK number untuk keperluan internal/logging (tidak disimpan ke DB)
                 var skNumber = await GenerateMeninggalDuniaSKNumberAsync(conn);
 
-                // Update record WITHOUT srt_no field (bypass foreign key constraint)
                 var updateCmd = new SqlCommand(@"
                     UPDATE sia_msmeninggaldunia 
                     SET mdu_sk = @sk,
@@ -783,7 +758,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 if (rowsAffected > 0)
                 {
                     
-                    // Verify the update worked
                     var verifyCmd = new SqlCommand(
                         "SELECT mdu_sk, mdu_spkb, mdu_status FROM sia_msmeninggaldunia WHERE mdu_id = @id", conn);
                     verifyCmd.Parameters.AddWithValue("@id", id);
@@ -806,14 +780,10 @@ namespace astratech_apps_backend.Repositories.Implementations
             }
             catch
             {
-                throw; // Re-throw to let controller handle it
+                throw;
             }
         }
 
-        /// <summary>
-        /// Generate SK number for Meninggal Dunia with format: 010/PA-WADIR-I/SKM/IX/2026
-        /// Logika murni backend untuk generate nomor SK otomatis
-        /// </summary>
         private async Task<string> GenerateMeninggalDuniaSKNumberAsync(SqlConnection conn)
         {
             try
@@ -824,7 +794,6 @@ namespace astratech_apps_backend.Repositories.Implementations
             }
             catch
             {
-                // Emergency fallback
                 var now = DateTime.Now;
                 var romanMonth = ConvertToRoman(now.Month);
                 return $"999/PA-WADIR-I/SKM/{romanMonth}/{now.Year}";
@@ -897,7 +866,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 }
             }
             
-            // Fallback with timestamp
             var timestamp = DateTimeOffset.Now.ToUnixTimeSeconds() % 999;
             return $"{timestamp + 500:D3}{skFormat}";
         }
@@ -915,9 +883,6 @@ namespace astratech_apps_backend.Repositories.Implementations
             return count == 0;
         }
 
-        /// <summary>
-        /// Generate sequence number from mdu_id for display purposes
-        /// </summary>
         private int GenerateSequenceFromMeninggalDuniaId(string mduId)
         {
             try
@@ -925,7 +890,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 if (string.IsNullOrEmpty(mduId))
                     return 1;
                 
-                // Extract numeric part from ID like "031/PA-MD/I/2026"
                 if (mduId.Contains("/PA-MD/"))
                 {
                     var parts = mduId.Split('/');
@@ -935,7 +899,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                     }
                 }
                 
-                // Fallback: generate from hash of ID
                 var hash = Math.Abs(mduId.GetHashCode()) % 999;
                 return hash == 0 ? 1 : hash;
             }
@@ -945,9 +908,6 @@ namespace astratech_apps_backend.Repositories.Implementations
             }
         }
 
-        /// <summary>
-        /// Convert Month to Roman (Same as CutiAkademik)
-        /// </summary>
         private string ConvertToRoman(int month)
         {
             return month switch
@@ -983,7 +943,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 CommandType = CommandType.StoredProcedure
             };
 
-            // Parameter sesuai dengan SP yang sudah di-ALTER (tidak disingkat)
             cmd.Parameters.AddWithValue("@Keyword", keyword ?? "");
             cmd.Parameters.AddWithValue("@Sort", sort ?? "mdu_created_date desc");
             cmd.Parameters.AddWithValue("@Konsentrasi", konsentrasi ?? "");
@@ -1017,7 +976,6 @@ namespace astratech_apps_backend.Repositories.Implementations
 
             await using var conn = new SqlConnection(_conn);
             
-            // Gunakan query langsung untuk memastikan data bisa diambil
             var sql = @"
                 SELECT 
                     a.mdu_id,
@@ -1033,7 +991,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 LEFT JOIN sia_msprodi d ON d.pro_id = c.pro_id
                 WHERE a.mdu_status NOT IN ('Draft', 'Dihapus')";
 
-            // Add keyword filter if provided
             if (!string.IsNullOrEmpty(req.Keyword))
             {
                 sql += @" AND (
@@ -1043,19 +1000,16 @@ namespace astratech_apps_backend.Repositories.Implementations
                 )";
             }
 
-            // Add konsentrasi filter if provided
             if (!string.IsNullOrEmpty(req.Konsentrasi))
             {
                 sql += " AND b.kon_id = @Konsentrasi";
             }
 
-            // Add roleId filter if provided
             if (!string.IsNullOrEmpty(req.RoleId))
             {
                 sql += " AND c.kon_npk = @RoleId";
             }
 
-            // Add sorting
             var sort = req.Sort ?? "mdu_created_date desc";
             sql += sort switch
             {
@@ -1095,10 +1049,8 @@ namespace astratech_apps_backend.Repositories.Implementations
                 });
             }
 
-            // Total data sebelum paging
             int total = list.Count;
 
-            // Paging FE-style
             list = list
                 .Skip((req.PageNumber - 1) * req.PageSize)
                 .Take(req.PageSize)
@@ -1117,13 +1069,11 @@ namespace astratech_apps_backend.Repositories.Implementations
 
             await using var conn = new SqlConnection(_conn);
             
-            // Gunakan stored procedure dengan parameter yang sudah di-ALTER
             await using var cmd = new SqlCommand("sia_getDataRiwayatMeninggalDuniaExcel", conn)
             {
                 CommandType = CommandType.StoredProcedure
             };
 
-            // Parameter sesuai dengan SP yang sudah di-ALTER (tidak disingkat)
             cmd.Parameters.AddWithValue("@Sort", sort ?? "");
             cmd.Parameters.AddWithValue("@Konsentrasi", konsentrasi ?? "");
 
@@ -1152,7 +1102,6 @@ namespace astratech_apps_backend.Repositories.Implementations
             {
                 await using var conn = new SqlConnection(_conn);
                 
-                // Gunakan stored procedure dengan parameter yang sudah di-ALTER
                 await using var cmd = new SqlCommand("sia_getDetailMeninggalDunia", conn)
                 {
                     CommandType = CommandType.StoredProcedure
@@ -1187,7 +1136,6 @@ namespace astratech_apps_backend.Repositories.Implementations
             }
             catch
             {
-                // Log error jika perlu
                 return null;
             }
         }
@@ -1218,7 +1166,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                     CommandType = CommandType.StoredProcedure
                 };
 
-                // Parameter sesuai dengan SP yang sudah di-ALTER (tidak disingkat)
                 cmd.Parameters.AddWithValue("@MeninggalDuniaId", id);
                 cmd.Parameters.AddWithValue("@Role", dto.Role);
                 cmd.Parameters.AddWithValue("@Username", dto.Username);
@@ -1279,7 +1226,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                     CommandType = CommandType.StoredProcedure
                 };
 
-                // Parameter sesuai dengan SP yang sudah di-ALTER (tidak disingkat)
                 cmd.Parameters.AddWithValue("@MeninggalDuniaId", id);
                 cmd.Parameters.AddWithValue("@Role", dto.Role ?? "");
                 cmd.Parameters.AddWithValue("@Username", dto.Username ?? "");
@@ -1325,7 +1271,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                     CommandType = CommandType.StoredProcedure
                 };
 
-                // Based on the error message, the SP expects @UsernameToFind parameter
                 cmd.Parameters.AddWithValue("@UsernameToFind", username);
 
                 await conn.OpenAsync();
@@ -1334,7 +1279,6 @@ namespace astratech_apps_backend.Repositories.Implementations
 
                 if (await reader.ReadAsync())
                 {
-                    // Log all available columns for debugging
                     for (int i = 0; i < reader.FieldCount; i++)
                     {
                         var columnName = reader.GetName(i);
@@ -1347,7 +1291,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                     var rolId = reader["rol_id"]?.ToString() ?? "";
                     
                     
-                    // Role detection based on str_main_id as mentioned by user
                     var role = strMainId switch
                     {
                         "27" or "23" or "28" => "finance",
@@ -1358,7 +1301,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 }
                 
                 
-                // Let's also try a direct query to see if the user exists in the tables
                 await using var directCmd = new SqlCommand(@"
                     SELECT a.kry_username, a.jab_main_id, a.str_main_id, b.rol_id, a.kry_id
                     FROM ess_mskaryawan a 
@@ -1402,7 +1344,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 CommandType = CommandType.StoredProcedure
             };
 
-            // SP memerlukan 50 parameter tapi tidak digunakan
             for (int i = 1; i <= 50; i++)
             {
                 cmd.Parameters.AddWithValue($"@p{i}", "");
@@ -1433,10 +1374,8 @@ namespace astratech_apps_backend.Repositories.Implementations
                 CommandType = CommandType.StoredProcedure
             };
 
-            // @p1 = mhs_id
             cmd.Parameters.AddWithValue("@p1", mhsId);
 
-            // @p2 - @p50 harus tetap dikirim kosong
             for (int i = 2; i <= 50; i++)
             {
                 cmd.Parameters.AddWithValue($"@p{i}", "");
