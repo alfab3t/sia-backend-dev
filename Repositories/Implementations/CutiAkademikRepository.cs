@@ -48,80 +48,25 @@ namespace astratech_apps_backend.Repositories.Implementations
 
         public async Task<string?> GenerateIdAsync(GenerateIdFinalCutiAkademikRequest dto)
         {
-            try
+            await using var conn = new SqlConnection(_conn);
+            await conn.OpenAsync();
+            
+            await using var cmd = new SqlCommand("sia_createCutiAkademik", conn)
             {
-                await using var conn = new SqlConnection(_conn);
-                await conn.OpenAsync();
-                
-                var checkCmd = new SqlCommand(@"
-                    SELECT cak_id, cak_status, mhs_id
-                    FROM sia_mscutiakademik 
-                    WHERE cak_id = @draftId", conn);
-                checkCmd.Parameters.AddWithValue("@draftId", dto.DraftId);
-                
-                var reader = await checkCmd.ExecuteReaderAsync();
-                if (!await reader.ReadAsync())
-                {
-                    await reader.CloseAsync();
-                    throw new ArgumentException($"Draft record dengan ID '{dto.DraftId}' tidak ditemukan.");
-                }
-                
-                var status = reader["cak_status"].ToString();
-                await reader.CloseAsync();
-                
-                if (status != "Draft")
-                {
-                    throw new InvalidOperationException($"Record dengan ID '{dto.DraftId}' bukan dalam status Draft (status: {status}).");
-                }
-                
-                await using var cmd = new SqlCommand("sia_createCutiAkademik", conn)
-                {
-                    CommandType = CommandType.StoredProcedure
-                };
+                CommandType = CommandType.StoredProcedure
+            };
 
-                cmd.Parameters.AddWithValue("@Step", "STEP2");
-                cmd.Parameters.AddWithValue("@TahunAjaran", "");
-                cmd.Parameters.AddWithValue("@Semester", "");
-                cmd.Parameters.AddWithValue("@LampiranSuratPengajuan", "");
-                cmd.Parameters.AddWithValue("@Lampiran", "");
-                cmd.Parameters.AddWithValue("@MahasiswaId", "");
-                cmd.Parameters.AddWithValue("@DraftId", dto.DraftId);
-                cmd.Parameters.AddWithValue("@ModifiedBy", dto.ModifiedBy);
+            cmd.Parameters.AddWithValue("@Step", "STEP2");
+            cmd.Parameters.AddWithValue("@TahunAjaran", "");
+            cmd.Parameters.AddWithValue("@Semester", "");
+            cmd.Parameters.AddWithValue("@LampiranSuratPengajuan", "");
+            cmd.Parameters.AddWithValue("@Lampiran", "");
+            cmd.Parameters.AddWithValue("@MahasiswaId", "");
+            cmd.Parameters.AddWithValue("@DraftId", dto.DraftId);
+            cmd.Parameters.AddWithValue("@ModifiedBy", dto.ModifiedBy);
 
-                var result = await cmd.ExecuteScalarAsync();
-                
-                if (result == null)
-                {
-                    throw new InvalidOperationException("Gagal mengambil final ID setelah generate.");
-                }
-                
-                return result.ToString();
-            }
-            catch (Exception)
-            {
-                throw;
-            }
-        }
-
-        private async Task<string> GenerateUniqueDraftIdAsync(SqlConnection conn)
-        {
-            for (int attempt = 0; attempt < 10; attempt++)
-            {
-                var timestamp = DateTimeOffset.Now.ToUnixTimeSeconds();
-                var random = new Random().Next(100, 999);
-                var candidateId = $"{timestamp}{random}";
-
-                var checkCmd = new SqlCommand("SELECT COUNT(*) FROM sia_mscutiakademik WHERE cak_id = @id", conn);
-                checkCmd.Parameters.AddWithValue("@id", candidateId);
-
-                var count = (int)(await checkCmd.ExecuteScalarAsync() ?? 0);
-                if (count == 0)
-                {
-                    return candidateId;
-                }
-            }
-
-            return Guid.NewGuid().ToString("N")[..10];
+            var result = await cmd.ExecuteScalarAsync();
+            return result?.ToString();
         }
 
         private string ConvertToRoman(int month)
@@ -423,55 +368,27 @@ namespace astratech_apps_backend.Repositories.Implementations
 
         private async Task<string?> CreateDraftByProdiDirectAsync(CreateDraftCutiAkademikByProdiRequest dto, SqlConnection conn)
         {
-           
             var fileSP = SaveFile(dto.LampiranSuratPengajuan);
             var fileLampiran = SaveFile(dto.Lampiran);
 
-          
-            string newDraftId = await GenerateUniqueDraftIdAsync(conn);
+            var cmd = new SqlCommand("sia_createCutiAkademikByProdi", conn)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
 
-            var insertSql = @"
-                INSERT INTO sia_mscutiakademik (
-                    cak_id, 
-                    mhs_id, 
-                    cak_tahunajaran, 
-                    cak_semester, 
-                    cak_lampiran_suratpengajuan, 
-                    cak_lampiran, 
-                    cak_menimbang,
-                    cak_approval_prodi,
-                    cak_app_prodi_date,
-                    cak_status, 
-                    cak_created_date, 
-                    cak_created_by
-                ) VALUES (
-                    @cak_id, 
-                    @mhs_id, 
-                    @tahunajaran, 
-                    @semester, 
-                    @lampiran_sp, 
-                    @lampiran, 
-                    @menimbang,
-                    @approval_prodi,
-                    GETDATE(),
-                    'Draft', 
-                    GETDATE(), 
-                    @created_by
-                )";
+            cmd.Parameters.AddWithValue("@Step", "STEP1");
+            cmd.Parameters.AddWithValue("@TahunAjaran", dto.TahunAjaran ?? "");
+            cmd.Parameters.AddWithValue("@Semester", dto.Semester ?? "");
+            cmd.Parameters.AddWithValue("@LampiranSuratPengajuan", fileSP ?? "");
+            cmd.Parameters.AddWithValue("@Lampiran", fileLampiran ?? "");
+            cmd.Parameters.AddWithValue("@MahasiswaId", dto.MhsId ?? "");
+            cmd.Parameters.AddWithValue("@Menimbang", dto.Menimbang ?? "");
+            cmd.Parameters.AddWithValue("@ApprovalProdi", dto.ApprovalProdi ?? "");
+            cmd.Parameters.AddWithValue("@DraftId", ""); 
+            cmd.Parameters.AddWithValue("@ModifiedBy", dto.ApprovalProdi ?? "");
 
-            var cmd = new SqlCommand(insertSql, conn);
-            cmd.Parameters.AddWithValue("@cak_id", newDraftId);
-            cmd.Parameters.AddWithValue("@mhs_id", dto.MhsId ?? "");
-            cmd.Parameters.AddWithValue("@tahunajaran", dto.TahunAjaran ?? "");
-            cmd.Parameters.AddWithValue("@semester", dto.Semester ?? "");
-            cmd.Parameters.AddWithValue("@lampiran_sp", fileSP ?? "");
-            cmd.Parameters.AddWithValue("@lampiran", fileLampiran ?? "");
-            cmd.Parameters.AddWithValue("@menimbang", dto.Menimbang ?? "");
-            cmd.Parameters.AddWithValue("@approval_prodi", dto.ApprovalProdi ?? "");
-            cmd.Parameters.AddWithValue("@created_by", dto.ApprovalProdi ?? "");
-
-            await cmd.ExecuteNonQueryAsync();
-            return newDraftId;
+            var result = await cmd.ExecuteScalarAsync();
+            return result?.ToString();
         }
 
         public async Task<string?> GenerateIdByProdiAsync(GenerateIdFinalCutiAkademikByProdiRequest dto)
