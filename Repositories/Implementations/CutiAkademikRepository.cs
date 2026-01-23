@@ -187,101 +187,9 @@ namespace astratech_apps_backend.Repositories.Implementations
             await using var conn = new SqlConnection(_conn);
             await conn.OpenAsync();
 
-            var existingData = await GetExistingDataAsync(conn, id);
-            if (existingData == null)
-                throw new ArgumentException($"Data dengan ID {id} tidak ditemukan.");
+            var fileSP = SaveFile(dto.LampiranSuratPengajuan);
+            var fileLampiran = SaveFile(dto.Lampiran);
 
-            var fileData = await HandleFileUploadsAsync(dto, existingData);
-
-            return await UpdateBasedOnIdTypeAsync(conn, id, dto, fileData);
-        }
-
-        private async Task<(string? fileSP, string? fileLampiran)?> GetExistingDataAsync(SqlConnection conn, string id)
-        {
-            var checkCmd = new SqlCommand(@"
-                SELECT cak_lampiran_suratpengajuan, cak_lampiran, cak_id 
-                FROM sia_mscutiakademik 
-                WHERE cak_id = @id", conn);
-            checkCmd.Parameters.AddWithValue("@id", id);
-
-            using var reader = await checkCmd.ExecuteReaderAsync();
-            if (await reader.ReadAsync())
-            {
-                var fileSP = reader["cak_lampiran_suratpengajuan"]?.ToString();
-                var fileLampiran = reader["cak_lampiran"]?.ToString();
-                return (fileSP, fileLampiran);
-            }
-            return null;
-        }
-
-        private async Task<(string? fileSP, string? fileLampiran)> HandleFileUploadsAsync(
-            UpdateCutiAkademikRequest dto, 
-            (string? fileSP, string? fileLampiran)? existingData)
-        {
-            var fileSP = existingData?.fileSP;
-            var fileLampiran = existingData?.fileLampiran;
-
-            if (dto.LampiranSuratPengajuan != null)
-                fileSP = SaveFile(dto.LampiranSuratPengajuan);
-
-            if (dto.Lampiran != null)
-                fileLampiran = SaveFile(dto.Lampiran);
-
-            return (fileSP, fileLampiran);
-        }
-
-        private async Task<bool> UpdateBasedOnIdTypeAsync(
-            SqlConnection conn, 
-            string id, 
-            UpdateCutiAkademikRequest dto, 
-            (string? fileSP, string? fileLampiran) fileData)
-        {
-            bool isDraftId = !id.Contains("PMA") && !id.Contains("CA");
-
-            if (isDraftId)
-            {
-                return await UpdateDraftAsync(conn, id, dto, fileData);
-            }
-            else
-            {
-                return await UpdateFinalAsync(conn, id, dto, fileData);
-            }
-        }
-
-        private async Task<bool> UpdateDraftAsync(
-            SqlConnection conn, 
-            string id, 
-            UpdateCutiAkademikRequest dto, 
-            (string? fileSP, string? fileLampiran) fileData)
-        {
-            var updateSql = @"
-                UPDATE sia_mscutiakademik 
-                SET cak_tahunajaran = @tahunajaran,
-                    cak_semester = @semester,
-                    cak_lampiran_suratpengajuan = @lampiran_sp,
-                    cak_lampiran = @lampiran,
-                    cak_modif_date = GETDATE(),
-                    cak_modif_by = @modified_by
-                WHERE cak_id = @id";
-
-            var updateCmd = new SqlCommand(updateSql, conn);
-            updateCmd.Parameters.AddWithValue("@id", id);
-            updateCmd.Parameters.AddWithValue("@tahunajaran", dto.TahunAjaran ?? "");
-            updateCmd.Parameters.AddWithValue("@semester", dto.Semester ?? "");
-            updateCmd.Parameters.AddWithValue("@lampiran_sp", fileData.fileSP ?? "");
-            updateCmd.Parameters.AddWithValue("@lampiran", fileData.fileLampiran ?? "");
-            updateCmd.Parameters.AddWithValue("@modified_by", dto.ModifiedBy ?? "");
-
-            var rows = await updateCmd.ExecuteNonQueryAsync();
-            return rows > 0;
-        }
-
-        private async Task<bool> UpdateFinalAsync(
-            SqlConnection conn, 
-            string id, 
-            UpdateCutiAkademikRequest dto, 
-            (string? fileSP, string? fileLampiran) fileData)
-        {
             var cmd = new SqlCommand("sia_editCutiAkademik", conn)
             {
                 CommandType = CommandType.StoredProcedure
@@ -290,14 +198,13 @@ namespace astratech_apps_backend.Repositories.Implementations
             cmd.Parameters.AddWithValue("@CutiAkademikId", id);
             cmd.Parameters.AddWithValue("@TahunAjaran", dto.TahunAjaran ?? "");
             cmd.Parameters.AddWithValue("@Semester", dto.Semester ?? "");
-            cmd.Parameters.AddWithValue("@LampiranSuratPengajuan", fileData.fileSP ?? "");
-            cmd.Parameters.AddWithValue("@Lampiran", fileData.fileLampiran ?? "");
+            cmd.Parameters.AddWithValue("@LampiranSuratPengajuan", fileSP ?? "");
+            cmd.Parameters.AddWithValue("@Lampiran", fileLampiran ?? "");
             cmd.Parameters.AddWithValue("@ModifiedBy", dto.ModifiedBy ?? "");
 
-            var rows = await cmd.ExecuteNonQueryAsync();
-            return rows > 0;
+            var result = await cmd.ExecuteScalarAsync();
+            return Convert.ToInt32(result ?? 0) > 0;
         }
-
 
         public async Task<bool> DeleteAsync(string id, string modifiedBy)
         {
@@ -521,150 +428,28 @@ namespace astratech_apps_backend.Repositories.Implementations
        
         public async Task<bool> ApproveCutiAsync(ApproveCutiAkademikRequest dto)
         {
-            try
-            {
-                await using var conn = new SqlConnection(_conn);
-                await conn.OpenAsync();
+            await using var conn = new SqlConnection(_conn);
+            await conn.OpenAsync();
 
-                var recordInfo = await GetRecordInfoAsync(conn, dto.Id);
-                if (recordInfo == null) return false;
-
-                return await ProcessApprovalByRoleAsync(conn, dto, recordInfo.Value.currentStatus);
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        private async Task<(string currentStatus, string mhsId)?> GetRecordInfoAsync(SqlConnection conn, string id)
-        {
-            var checkCmd = new SqlCommand(
-                "SELECT cak_id, cak_status, mhs_id FROM sia_mscutiakademik WHERE cak_id = @id", conn);
-            checkCmd.Parameters.AddWithValue("@id", id);
-
-            var reader = await checkCmd.ExecuteReaderAsync();
-            if (!await reader.ReadAsync())
-            {
-                await reader.CloseAsync();
-                return null;
-            }
-
-            var currentStatus = reader["cak_status"]?.ToString() ?? "";
-            var mhsId = reader["mhs_id"]?.ToString() ?? "";
-            await reader.CloseAsync();
-
-            return (currentStatus, mhsId);
-        }
-
-        private async Task<bool> ProcessApprovalByRoleAsync(SqlConnection conn, ApproveCutiAkademikRequest dto, string currentStatus)
-        {
-            if (dto.Role.ToLower() == "finance" || dto.Role.ToLower() == "karyawan")
-            {
-                return await ProcessFinanceApprovalAsync(conn, dto, currentStatus);
-            }
-            else
-            {
-                return await ProcessOtherRoleApprovalAsync(conn, dto);
-            }
-        }
-
-        private async Task<bool> ProcessFinanceApprovalAsync(SqlConnection conn, ApproveCutiAkademikRequest dto, string currentStatus)
-        {
-            if (currentStatus != "Belum Disetujui Finance")
-            {
-                return false;
-            }
-
-            var financeSpCmd = new SqlCommand("sia_setujuiCutiAkademik", conn)
+            var cmd = new SqlCommand("sia_setujuiCutiAkademik", conn)
             {
                 CommandType = CommandType.StoredProcedure
             };
 
-            financeSpCmd.Parameters.AddWithValue("@CutiAkademikId", dto.Id);
-            financeSpCmd.Parameters.AddWithValue("@Role", "finance");
-            financeSpCmd.Parameters.AddWithValue("@ApprovedBy", dto.ApprovedBy);
+            cmd.Parameters.AddWithValue("@CutiAkademikId", dto.Id);
+            cmd.Parameters.AddWithValue("@Role", dto.Role.ToLower());
+            cmd.Parameters.AddWithValue("@ApprovedBy", dto.ApprovedBy);
 
-            await financeSpCmd.ExecuteNonQueryAsync();
-
-            return await VerifyFinanceApprovalAsync(conn, dto.Id);
-        }
-
-        private async Task<bool> VerifyFinanceApprovalAsync(SqlConnection conn, string id)
-        {
-            var verifyCmd = new SqlCommand(
-                "SELECT cak_status, cak_approval_dakap, srt_no FROM sia_mscutiakademik WHERE cak_id = @id", conn);
-            verifyCmd.Parameters.AddWithValue("@id", id);
-
-            var verifyReader = await verifyCmd.ExecuteReaderAsync();
-            if (await verifyReader.ReadAsync())
+            using var reader = await cmd.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
             {
-                var updatedStatus = verifyReader["cak_status"].ToString();
-                await verifyReader.CloseAsync();
-
-                return updatedStatus == "Menunggu Upload SK";
-            }
-            else
-            {
-                await verifyReader.CloseAsync();
-                return false;
-            }
-        }
-
-        private async Task<bool> ProcessOtherRoleApprovalAsync(SqlConnection conn, ApproveCutiAkademikRequest dto)
-        {
-            var spCmd = new SqlCommand("sia_setujuiCutiAkademik", conn)
-            {
-                CommandType = CommandType.StoredProcedure
-            };
-
-            spCmd.Parameters.AddWithValue("@CutiAkademikId", dto.Id);
-            spCmd.Parameters.AddWithValue("@Role", dto.Role.ToLower());
-            spCmd.Parameters.AddWithValue("@ApprovedBy", dto.ApprovedBy);
-
-            var spRows = await spCmd.ExecuteNonQueryAsync();
-
-            if (spRows > 0)
-            {
-                return true;
+                var success = Convert.ToBoolean(reader["Success"]);
+                return success;
             }
 
-            return await ProcessDirectSQLFallbackAsync(conn, dto);
+            return false;
         }
 
-        private async Task<bool> ProcessDirectSQLFallbackAsync(SqlConnection conn, ApproveCutiAkademikRequest dto)
-        {
-            var (targetStatus, approvalField, dateField) = GetRoleSpecificFields(dto.Role);
-            if (string.IsNullOrEmpty(targetStatus)) return false;
-
-            var directCmd = new SqlCommand($@"
-                UPDATE sia_mscutiakademik 
-                SET {approvalField} = @approvedBy,
-                    cak_status = @newStatus,
-                    {dateField} = GETDATE(),
-                    cak_modif_date = GETDATE(),
-                    cak_modif_by = @approvedBy
-                WHERE cak_id = @id", conn);
-
-            directCmd.Parameters.AddWithValue("@id", dto.Id);
-            directCmd.Parameters.AddWithValue("@approvedBy", dto.ApprovedBy);
-            directCmd.Parameters.AddWithValue("@newStatus", targetStatus);
-
-            var directRows = await directCmd.ExecuteNonQueryAsync();
-            return directRows > 0;
-        }
-
-        private (string targetStatus, string approvalField, string dateField) GetRoleSpecificFields(string role)
-        {
-            return role.ToLower() switch
-            {
-                "prodi" => ("Belum Disetujui Wadir 1", "cak_approval_prodi", "cak_app_prodi_date"),
-                "wadir1" or "wadir 1" => ("Belum Disetujui Finance", "cak_approval_dir1", "cak_app_dir1_date"),
-                _ => ("", "", "")
-            };
-        }
-
-       
         public async Task<bool> ApproveProdiCutiAsync(ApproveCutiAkademikByProdiRequest dto)
         {
             try
