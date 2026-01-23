@@ -1,7 +1,9 @@
 using astratech_apps_backend.DTOs.MeninggalDunia;
 using astratech_apps_backend.Repositories.Interfaces;
+using astratech_apps_backend.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+
 
 namespace astratech_apps_backend.Controllers
 {
@@ -17,6 +19,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpGet("GetAllMeninggalDunia")]
+        [RequiresPermission("meninggal_dunia.view")]
         public async Task<IActionResult> GetAllMeninggalDunia([FromQuery] GetAllMeninggalDuniaRequest req)
         {
             try
@@ -46,13 +49,14 @@ namespace astratech_apps_backend.Controllers
                     TotalHalaman = (int)Math.Ceiling((double)result.TotalData / req.PageSize)
                 });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return BadRequest(new { message = "Terjadi kesalahan saat mengambil data.", error = ex.Message });
+                return BadRequest(new { message = "Terjadi kesalahan saat mengambil data." });
             }
         }
 
         [HttpGet("GetMahasiswaListForMeninggalDunia")]
+        [RequiresPermission("meninggal_dunia.view")]
         public async Task<IActionResult> GetMahasiswaListForMeninggalDunia([FromQuery] string? search = null)
         {
             var data = await _repository.GetMahasiswaListAsync(search);
@@ -60,6 +64,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpGet("GetMahasiswaDropdownForMeninggalDunia")]
+        [RequiresPermission("meninggal_dunia.view")]
         public async Task<IActionResult> GetMahasiswaDropdownForMeninggalDunia()
         {
             var data = await _repository.GetMahasiswaDropdownSPAsync();
@@ -67,6 +72,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpGet("GetMahasiswaDetailForMeninggalDunia/{mhsId}")]
+        [RequiresPermission("meninggal_dunia.view")]
         public async Task<IActionResult> GetMahasiswaDetailForMeninggalDunia(string mhsId)
         {
             var data = await _repository.GetMahasiswaDetailAsync(mhsId);
@@ -77,6 +83,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpGet("GetMahasiswaProdiForMeninggalDunia/{mhsId}")]
+        [RequiresPermission("meninggal_dunia.view")]
         public async Task<IActionResult> GetMahasiswaProdiForMeninggalDunia(string mhsId)
         {
             var data = await _repository.GetMahasiswaProdiSPAsync(mhsId);
@@ -87,6 +94,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpGet("GetProgramStudiListForMeninggalDunia")]
+        [RequiresPermission("meninggal_dunia.view")]
         public async Task<IActionResult> GetProgramStudiListForMeninggalDunia()
         {
             var data = await _repository.GetProgramStudiListAsync();
@@ -94,6 +102,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpGet("GetDetailMeninggalDunia/{id}")]
+        [RequiresPermission("meninggal_dunia.view")]
         public async Task<IActionResult> GetDetailMeninggalDunia(string id)
         {
             try
@@ -107,13 +116,14 @@ namespace astratech_apps_backend.Controllers
 
                 return Ok(data);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return BadRequest(new { message = "Terjadi kesalahan saat mengambil detail data", error = ex.Message });
+                return BadRequest(new { message = "Terjadi kesalahan saat mengambil detail data" });
             }
         }
 
         [HttpGet("DownloadFileMeninggalDunia/{filename}")]
+        [RequiresPermission("meninggal_dunia.print")]
         public IActionResult DownloadFileMeninggalDunia(string filename)
         {
             const string uploadsFolder = "uploads";
@@ -134,8 +144,6 @@ namespace astratech_apps_backend.Controllers
             if (foundPath == null)
                 return NotFound(new { 
                     message = "File tidak ditemukan.", 
-                    filename = filename,
-                    searchedPaths = possiblePaths.Select(p => p.Replace(Directory.GetCurrentDirectory(), "")).ToArray()
                 });
 
             var fileBytes = System.IO.File.ReadAllBytes(foundPath);
@@ -164,6 +172,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpPost("CreateMeninggalDunia")]
+        [RequiresPermission("meninggal_dunia.create")]
         public async Task<IActionResult> CreateMeninggalDunia([FromForm] CreateMeninggalDuniaRequest dto)
         {
             if (!ModelState.IsValid)
@@ -195,6 +204,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpPost("FinalizeDraftMeninggalDunia/{draftId}")]
+        [RequiresPermission("meninggal_dunia.create")]
         public async Task<IActionResult> FinalizeDraftMeninggalDunia(string draftId)
         {
             try
@@ -208,36 +218,33 @@ namespace astratech_apps_backend.Controllers
                 if (string.IsNullOrEmpty(officialId))
                 {
                     return BadRequest(new { 
-                        message = "Gagal memfinalisasi draft. Draft mungkin tidak ditemukan, sudah diproses, atau terjadi kesalahan dalam generate ID resmi.",
+                        message = "Gagal mengajukan Meninggal Dunia.",
                         draftId = draftId
                     });
                 }
 
                 return Ok(new { 
-                    message = "Draft berhasil difinalisasi menjadi pengajuan resmi.",
-                    draftId = draftId,
-                    officialId = officialId,
-                    updatedBy = updatedBy
+                    message = "Pengajuan Meninggal Dunia Berhasil Dikirim.",
                 });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat memfinalisasi draft.",
-                    draftId = draftId,
-                    error = ex.Message
+                    draftId = draftId
                 });
             }
         }
 
         [HttpPut("UpdateMeninggalDunia/{id}")]
+        [RequiresPermission("meninggal_dunia.edit")]
         public async Task<IActionResult> UpdateMeninggalDunia(string id, [FromForm] UpdateMeninggalDuniaRequest dto)
         {
             try
             {
                 if (string.IsNullOrEmpty(id))
                 {
-                    return BadRequest(new { message = "ID tidak boleh kosong." });
+                    return BadRequest(new { message = "Data pengajuan Meninggal Dunia Tidak Boleh Kosong." });
                 }
 
                 var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
@@ -267,30 +274,27 @@ namespace astratech_apps_backend.Controllers
                 if (!success)
                 {
                     return BadRequest(new { 
-                        message = "Gagal memperbarui data. Data mungkin tidak ditemukan.",
-                        id = id
+                        message = "Gagal Perbarui Data Pengajuan Meninggal Dunia.",
                     });
                 }
 
                 return Ok(new { 
-                    message = "Data berhasil diperbarui.",
-                    id = id,
-                    updatedBy = updatedBy,
+                    message = "Data Pengajuan Meninggal Dunia Berhasil Di Perbarui.",
                     hasFile = true, // Selalu true karena file required
                     mhsId = dto.MhsId
                 });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat memperbarui data.",
-                    error = ex.Message,
                     id = id
                 });
             }
         }
 
         [HttpPut("UploadSKMeninggalDunia")]
+        [RequiresPermission("meninggal_dunia.edit")]
         public async Task<IActionResult> UploadSKMeninggalDunia([FromForm] UploadSKMeninggalDuniaRequest request)
         {
             try
@@ -376,11 +380,11 @@ namespace astratech_apps_backend.Controllers
 
                 if (!result)
                 {
-                    return BadRequest(new { message = "Gagal upload SK Meninggal Dunia. Periksa apakah MduId valid dan status adalah 'Menunggu Upload SK'." });
+                    return BadRequest(new { message = "Gagal upload SK Meninggal Dunia." });
                 }
 
                 return Ok(new { 
-                    message = "Upload SK berhasil. Status meninggal dunia telah diubah menjadi 'Disetujui'. Nomor SK akan ditampilkan otomatis dengan format tahun 2026.",
+                    message = "Upload SK berhasil.",
                     success = true,
                     mduId = request.MduId,
                     skFileName = request.SK?.FileName ?? "",
@@ -388,17 +392,16 @@ namespace astratech_apps_backend.Controllers
                     modifiedBy = request.ModifiedBy
                 });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return BadRequest(new { 
-                    message = "Terjadi kesalahan saat mengupload SK.", 
-                    error = ex.Message,
-                    details = ex.InnerException?.Message
+                    message = "Terjadi kesalahan saat mengupload SK."
                 });
             }
         }
 
         [HttpDelete("DeleteMeninggalDunia/{id}")]
+        [RequiresPermission("meninggal_dunia.delete")]
         public async Task<IActionResult> DeleteMeninggalDunia(string id)
         {
             const string userIdKey = "UserId";
@@ -409,12 +412,13 @@ namespace astratech_apps_backend.Controllers
             var result = await _repository.SoftDeleteAsync(id, updatedBy);
 
             if (!result)
-                return BadRequest(new { message = "Gagal menghapus data." });
+                return BadRequest(new { message = "Gagal Menghapus Data Pengajuan Meninggal Dunia." });
 
-            return Ok(new { message = "Data meninggal dunia berhasil dihapus (soft delete)." });
+            return Ok(new { message = "Data Pengajuan Meninggal Dunia." });
         }
 
         [HttpPut("ApproveMeninggalDunia/{id}")]
+        [RequiresPermission("meninggal_dunia.approve_reject")]
         public async Task<IActionResult> ApproveMeninggalDunia(string id, [FromBody] ApproveMeninggalDuniaRequest dto)
         {
             try
@@ -425,7 +429,7 @@ namespace astratech_apps_backend.Controllers
                 if (string.IsNullOrEmpty(detectedRole))
                 {
                     return BadRequest(new { 
-                        message = "Tidak dapat mendeteksi role pengguna. Pastikan username valid.",
+                        message = "ROL Tidak Valid.",
                         username = dto.Username
                     });
                 }
@@ -437,32 +441,28 @@ namespace astratech_apps_backend.Controllers
                 if (!result)
                 {
                     return BadRequest(new { 
-                        message = "Gagal menyetujui pengajuan. Data mungkin tidak ditemukan atau sudah diproses.",
-                        id = id,
-                        detectedRole = detectedRole,
+                        message = "Gagal Menyetujui Data Pengajuan Meninggal Dunia.",
                         username = dto.Username
                     });
                 }
 
                 return Ok(new { 
                     approved = true,
-                    id = id,
                     approvedBy = dto.Username,
                     role = detectedRole,
-                    message = $"Pengajuan berhasil disetujui oleh {detectedRole}"
+                    message ="Data Pengajuan Meninggal Dunia berhasil disetujui"
                 });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return BadRequest(new { 
-                    message = "Terjadi kesalahan saat menyetujui pengajuan.",
-                    error = ex.Message,
-                    id = id
+                    message = "Terjadi Kesalahan Saat Menyetujui Data Pengajuan Meninggal Dunia."
                 });
             }
         }
 
         [HttpPut("RejectMeninggalDunia/{id}")]
+        [RequiresPermission("meninggal_dunia.approve_reject")]
         public async Task<IActionResult> RejectMeninggalDunia(string id, [FromBody] RejectMeninggalDuniaRequest dto)
         {
             try
@@ -473,7 +473,7 @@ namespace astratech_apps_backend.Controllers
                 if (string.IsNullOrEmpty(detectedRole))
                 {
                     return BadRequest(new { 
-                        message = "Tidak dapat mendeteksi role pengguna. Pastikan username valid.",
+                        message = "ROL Tidak Valid",
                         username = dto.Username
                     });
                 }
@@ -485,33 +485,29 @@ namespace astratech_apps_backend.Controllers
                 if (!success)
                 {
                     return BadRequest(new { 
-                        message = "Gagal menolak pengajuan. Data mungkin tidak ditemukan atau sudah diproses.",
-                        id = id,
-                        detectedRole = detectedRole,
-                        username = dto.Username
+                        message = "Gagal Menolak Data pengajuan Meninggal Dunia.",
+
                     });
                 }
 
                 return Ok(new
                 {
                     rejected = true,
-                    id = id,
                     rejectedBy = dto.Username,
                     role = detectedRole,
-                    message = $"Pengajuan berhasil ditolak oleh {detectedRole}"
+                    message ="Data pengajuan Meninggal Dunia Berhasil Ditolak"
                 });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return BadRequest(new { 
-                    message = "Terjadi kesalahan saat menolak pengajuan.",
-                    error = ex.Message,
-                    id = id
+                    message = "Terjadi Kesalahan Saat Menolak Pengajuan.",
                 });
             }
         }
 
         [HttpGet("GetRiwayatMeninggalDunia")]
+        [RequiresPermission("meninggal_dunia.view")]
         public async Task<IActionResult> GetRiwayatMeninggalDunia([FromQuery] GetRiwayatMeninggalDuniaRequest req)
         {
             var result = await _repository.GetRiwayatAsync(req);
@@ -524,6 +520,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpGet("ExportRiwayatMeninggalDuniaToExcel")]
+        [RequiresPermission("meninggal_dunia.export")]
         public async Task<IActionResult> ExportRiwayatMeninggalDuniaToExcel(
             [FromQuery] string sort = "",
             [FromQuery] string konsentrasi = "")
@@ -581,11 +578,10 @@ namespace astratech_apps_backend.Controllers
                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     fileName);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return BadRequest(new { 
-                    message = "Terjadi kesalahan saat membuat file Excel.", 
-                    error = ex.Message 
+                    message = "Terjadi kesalahan saat membuat file Excel."
                 });
             }
         }
