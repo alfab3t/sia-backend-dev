@@ -162,7 +162,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpGet("GetAllCutiAkademik")]
-        //[RequiresPermission("cuti_akademik.view")]
+        [RequiresPermission("cuti_akademik.view")]
         public async Task<IActionResult> GetAllCutiAkademik(
             [FromQuery] string mhsId = "%", 
             [FromQuery] string status = "",
@@ -175,7 +175,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpGet("GetDetailCutiAkademik")]
-        //[RequiresPermission("cuti_akademik.view")]
+        [RequiresPermission("cuti_akademik.view")]
         public async Task<IActionResult> GetDetailCutiAkademik([FromQuery] string id)
         {
             var data = await _repository.GetDetailAsync(id);
@@ -518,7 +518,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpPut("UploadSKCutiAkademik")]
-        //[RequiresPermission("cuti_akademik.edit")]
+        [RequiresPermission("cuti_akademik.edit")]
         public async Task<IActionResult> UploadSKCutiAkademik([FromForm] UploadSKCutiAkademikRequest dto)
         {
             try
