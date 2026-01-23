@@ -19,7 +19,7 @@ namespace astratech_apps_backend.Controllers
 
         [HttpPost("CreateDraftCutiAkademik")]
         [RequiresPermission("cuti_akademik.create")]
-        public async Task<IActionResult> CreateDraftCutiAkademik([FromBody] CreateDraftCutiAkademikRequest dto)
+        public async Task<IActionResult> CreateDraftCutiAkademik([FromForm] CreateDraftCutiAkademikRequest dto)
         {
             var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
             const int maxFileSize = 10 * 1024 * 1024; 
@@ -72,7 +72,7 @@ namespace astratech_apps_backend.Controllers
 
         [HttpPost("CreateDraftCutiAkademikByProdi")]
         [RequiresPermission("cuti_akademik.create")]
-        public async Task<IActionResult> CreateDraftCutiAkademikByProdi([FromBody] CreateDraftCutiAkademikByProdiRequest dto)
+        public async Task<IActionResult> CreateDraftCutiAkademikByProdi([FromForm] CreateDraftCutiAkademikByProdiRequest dto)
         {
             try
             {
@@ -162,7 +162,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpGet("GetAllCutiAkademik")]
-        [RequiresPermission("cuti_akademik.view")]
+        //[RequiresPermission("cuti_akademik.view")]
         public async Task<IActionResult> GetAllCutiAkademik(
             [FromQuery] string mhsId = "%", 
             [FromQuery] string status = "",
@@ -175,7 +175,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpGet("GetDetailCutiAkademik")]
-        [RequiresPermission("cuti_akademik.view")]
+        //[RequiresPermission("cuti_akademik.view")]
         public async Task<IActionResult> GetDetailCutiAkademik([FromQuery] string id)
         {
             var data = await _repository.GetDetailAsync(id);
@@ -188,7 +188,7 @@ namespace astratech_apps_backend.Controllers
 
         [HttpPut("UpdateCutiAkademik/{id}")]
         [RequiresPermission("cuti_akademik.edit")]
-        public async Task<IActionResult> UpdateCutiAkademik(string id, [FromBody] UpdateCutiAkademikRequest dto)
+        public async Task<IActionResult> UpdateCutiAkademik(string id, [FromForm] UpdateCutiAkademikRequest dto)
         {
             try
             {
@@ -518,8 +518,8 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpPut("UploadSKCutiAkademik")]
-        [RequiresPermission("cuti_akademik.edit")]
-        public async Task<IActionResult> UploadSKCutiAkademik([FromBody] UploadSKCutiAkademikRequest dto)
+        //[RequiresPermission("cuti_akademik.edit")]
+        public async Task<IActionResult> UploadSKCutiAkademik([FromForm] UploadSKCutiAkademikRequest dto)
         {
             try
             {
@@ -555,27 +555,22 @@ namespace astratech_apps_backend.Controllers
                 
                 var success = await _repository.UploadSKAsync(dto);
                 
-                if (success)
-                {
-                    return Ok(new { 
-                        message = "SK berhasil diupload.",
-                        success = true,
-                        id = dto.Id
-                    });
-                }
-                
-                return BadRequest(new { message = "Gagal mengupload SK." });
-            }
-            catch (ArgumentException)
-            {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat mengupload SK."
+                return Ok(new { 
+                    message = "SK berhasil diupload.",
+                    success = true,
+                    id = dto.Id
                 });
             }
-            catch (InvalidOperationException)
+            catch (InvalidOperationException ex)
             {
                 return BadRequest(new { 
-                    message = "Operasi tidak valid saat mengupload SK."
+                    message = ex.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { 
+                    message = $"Terjadi kesalahan: {ex.Message}"
                 });
             }
         }

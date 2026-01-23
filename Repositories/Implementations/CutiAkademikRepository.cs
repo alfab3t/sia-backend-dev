@@ -69,25 +69,7 @@ namespace astratech_apps_backend.Repositories.Implementations
             return result?.ToString();
         }
 
-        private string ConvertToRoman(int month)
-        {
-            return month switch
-            {
-                1 => "I",
-                2 => "II", 
-                3 => "III",
-                4 => "IV",
-                5 => "V",
-                6 => "VI",
-                7 => "VII",
-                8 => "VIII",
-                9 => "IX",
-                10 => "X",
-                11 => "XI",
-                12 => "XII",
-                _ => "I"
-            };
-        }
+      
 
         public async Task<IEnumerable<CutiAkademikListResponse>> GetAllAsync(
             string mhsId, string status, string userId, string role, string search = "")
@@ -489,24 +471,36 @@ namespace astratech_apps_backend.Repositories.Implementations
 
         public async Task<bool> UploadSKAsync(UploadSKCutiAkademikRequest dto)
         {
-            await using var conn = new SqlConnection(_conn);
-            await conn.OpenAsync();
-
-            var fileName = SaveFile(dto.FileSK);
-            if (string.IsNullOrEmpty(fileName))
-                return false;
-
-            var cmd = new SqlCommand("sia_createSKCutiAkademik", conn)
+            try
             {
-                CommandType = CommandType.StoredProcedure
-            };
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
 
-            cmd.Parameters.AddWithValue("@CutiAkademikId", dto.Id);
-            cmd.Parameters.AddWithValue("@NomorSK", fileName);
-            cmd.Parameters.AddWithValue("@ModifiedBy", dto.UploadBy);
+                var fileName = SaveFile(dto.FileSK);
+                if (string.IsNullOrEmpty(fileName))
+                    throw new InvalidOperationException("Gagal menyimpan file SK");
 
-            var rowsAffected = await cmd.ExecuteNonQueryAsync();
-            return rowsAffected > 0;
+                var cmd = new SqlCommand("sia_createSKCutiAkademik", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                cmd.Parameters.AddWithValue("@CutiAkademikId", dto.Id);
+                cmd.Parameters.AddWithValue("@NomorSK", fileName);
+                cmd.Parameters.AddWithValue("@ModifiedBy", dto.UploadBy);
+
+                var rowsAffected = await cmd.ExecuteNonQueryAsync();
+                
+                if (rowsAffected == 0)
+                    throw new InvalidOperationException($"Stored procedure tidak mengupdate record. ID: {dto.Id}");
+                
+                return true;
+            }
+            catch (Exception ex)
+            {
+                // Log the actual error for debugging
+                throw new InvalidOperationException($"Error in UploadSKAsync: {ex.Message}", ex);
+            }
         }
 
         public async Task<string> DetectUserRoleAsync(string username)  
