@@ -39,19 +39,8 @@ namespace astratech_apps_backend.Repositories.Implementations
             cmd.Parameters.AddWithValue("@DraftId", "");
             cmd.Parameters.AddWithValue("@ModifiedBy", "");
 
-            await cmd.ExecuteNonQueryAsync();
-
-            var getDraftIdCmd = new SqlCommand(@"
-                SELECT TOP 1 cak_id 
-                FROM sia_mscutiakademik 
-                WHERE cak_created_by = @mhs_id 
-                  AND cak_status = 'Draft'
-                  AND cak_id NOT LIKE '%CA%'
-                ORDER BY cak_created_date DESC", conn);
-            getDraftIdCmd.Parameters.AddWithValue("@mhs_id", dto.MhsId);
-
-            var draftId = await getDraftIdCmd.ExecuteScalarAsync();
-            return draftId?.ToString();
+            var result = await cmd.ExecuteScalarAsync();
+            return result?.ToString();
         }
 
 
@@ -99,24 +88,14 @@ namespace astratech_apps_backend.Repositories.Implementations
                 cmd.Parameters.AddWithValue("@DraftId", dto.DraftId);
                 cmd.Parameters.AddWithValue("@ModifiedBy", dto.ModifiedBy);
 
-                await cmd.ExecuteNonQueryAsync();
+                var result = await cmd.ExecuteScalarAsync();
                 
-                var getFinalIdCmd = new SqlCommand(@"
-                    SELECT cak_id 
-                    FROM sia_mscutiakademik 
-                    WHERE cak_id LIKE '%/PMA/CA/%'
-                      AND cak_modif_by = @modifiedBy
-                    ORDER BY cak_modif_date DESC", conn);
-                getFinalIdCmd.Parameters.AddWithValue("@modifiedBy", dto.ModifiedBy);
-
-                var finalId = await getFinalIdCmd.ExecuteScalarAsync();
-                
-                if (finalId == null)
+                if (result == null)
                 {
                     throw new InvalidOperationException("Gagal mengambil final ID setelah generate.");
                 }
                 
-                return finalId.ToString();
+                return result.ToString();
             }
             catch (Exception)
             {
@@ -428,20 +407,8 @@ namespace astratech_apps_backend.Repositories.Implementations
                 cmd.Parameters.AddWithValue("@DraftId", ""); 
                 cmd.Parameters.AddWithValue("@ModifiedBy", ""); 
 
-                await cmd.ExecuteNonQueryAsync();
-
-               
-                var getDraftIdCmd = new SqlCommand(@"
-                    SELECT TOP 1 cak_id 
-                    FROM sia_mscutiakademik 
-                    WHERE cak_created_by = @approval_prodi 
-                      AND cak_status = 'Draft'
-                      AND cak_id NOT LIKE '%CA%'
-                    ORDER BY cak_created_date DESC", conn);
-                getDraftIdCmd.Parameters.AddWithValue("@approval_prodi", dto.ApprovalProdi ?? "");
-
-                var draftId = await getDraftIdCmd.ExecuteScalarAsync();
-                return draftId?.ToString();
+                var result = await cmd.ExecuteScalarAsync();
+                return result?.ToString();
             }
             catch (SqlException ex) when (ex.Number == 2627) 
             {
@@ -531,16 +498,8 @@ namespace astratech_apps_backend.Repositories.Implementations
                 cmd.Parameters.AddWithValue("@DraftId", dto.DraftId ?? "");
                 cmd.Parameters.AddWithValue("@ModifiedBy", dto.ModifiedBy ?? "");
 
-                await cmd.ExecuteNonQueryAsync();
-
-                
-                var cmd2 = new SqlCommand(
-                    @"SELECT TOP 1 cak_id 
-                      FROM sia_mscutiakademik 
-                      WHERE cak_id LIKE '%CA%'
-                      ORDER BY cak_modif_date DESC", conn);
-
-                return (string?)await cmd2.ExecuteScalarAsync();
+                var result = await cmd.ExecuteScalarAsync();
+                return result?.ToString();
             }
             catch (Exception)
             {
