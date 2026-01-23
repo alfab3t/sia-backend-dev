@@ -452,76 +452,20 @@ namespace astratech_apps_backend.Repositories.Implementations
 
         public async Task<bool> ApproveProdiCutiAsync(ApproveCutiAkademikByProdiRequest dto)
         {
-            try
+            await using var conn = new SqlConnection(_conn);
+            await conn.OpenAsync();
+
+            var cmd = new SqlCommand("sia_setujuiCutiAkademikProdi", conn)
             {
+                CommandType = CommandType.StoredProcedure
+            };
 
-                await using var conn = new SqlConnection(_conn);
-                await conn.OpenAsync();
+            cmd.Parameters.AddWithValue("@CutiAkademikId", dto.Id);
+            cmd.Parameters.AddWithValue("@Menimbang", dto.Menimbang ?? "");
+            cmd.Parameters.AddWithValue("@ApprovedBy", dto.ApprovedBy);
 
-                var checkCmd = new SqlCommand(
-                    "SELECT cak_id, cak_status FROM sia_mscutiakademik WHERE cak_id = @id", conn);
-                checkCmd.Parameters.AddWithValue("@id", dto.Id);
-
-                var reader = await checkCmd.ExecuteReaderAsync();
-                if (!await reader.ReadAsync())
-                {
-                    await reader.CloseAsync();
-                    return false;
-                }
-
-                var currentStatus = reader["cak_status"].ToString();
-                await reader.CloseAsync();
-                
-
-                var spCmd = new SqlCommand("sia_setujuiCutiAkademikProdi", conn)
-                {
-                    CommandType = CommandType.StoredProcedure
-                };
-
-                spCmd.Parameters.AddWithValue("@CutiAkademikId", dto.Id);
-                spCmd.Parameters.AddWithValue("@Menimbang", dto.Menimbang ?? "");
-                spCmd.Parameters.AddWithValue("@ApprovedBy", dto.ApprovedBy);
-
-                var spRows = await spCmd.ExecuteNonQueryAsync();
-
-                var newStatusCmd = new SqlCommand("SELECT cak_status FROM sia_mscutiakademik WHERE cak_id = @id", conn);
-                newStatusCmd.Parameters.AddWithValue("@id", dto.Id);
-                var newStatus = (await newStatusCmd.ExecuteScalarAsync())?.ToString();
-                
-                bool statusChanged = !string.Equals(currentStatus, newStatus, StringComparison.OrdinalIgnoreCase);
-                
-                if (statusChanged)
-                {
-                    return true;
-                }
-                else if (spRows > 0)
-                {
-                    return true;
-                }
-
-                
-                var directCmd = new SqlCommand(@"
-                    UPDATE sia_mscutiakademik 
-                    SET cak_menimbang = @menimbang,
-                        cak_approval_prodi = @approvedBy,
-                        cak_status = 'Belum Disetujui Wadir 1',
-                        cak_app_prodi_date = GETDATE()
-                    WHERE cak_id = @id", conn);
-
-                directCmd.Parameters.AddWithValue("@id", dto.Id);
-                directCmd.Parameters.AddWithValue("@menimbang", dto.Menimbang ?? "");
-                directCmd.Parameters.AddWithValue("@approvedBy", dto.ApprovedBy);
-
-                var directRows = await directCmd.ExecuteNonQueryAsync();
-
-                var success = directRows > 0;
-                
-                return success;
-            }
-            catch (Exception)
-            {
-                throw; 
-            }
+            var rowsAffected = await cmd.ExecuteNonQueryAsync();
+            return rowsAffected > 0;
         }
 
        
