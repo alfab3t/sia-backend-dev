@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Http;
 using System.ComponentModel.DataAnnotations;
 
 namespace astratech_apps_backend.DTOs.MeninggalDunia
@@ -9,6 +9,6 @@ namespace astratech_apps_backend.DTOs.MeninggalDunia
         public string MhsId { get; set; } = "";
         
         [Required(ErrorMessage = "Lampiran file harus diupload")]
-        public IFormFile? LampiranFile { get; set; }
+        public IFormFile LampiranFile { get; set; } = null!;
     }
 }

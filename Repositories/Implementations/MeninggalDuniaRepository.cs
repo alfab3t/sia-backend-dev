@@ -581,44 +581,32 @@ namespace astratech_apps_backend.Repositories.Implementations
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
 
-                string? fileName = null;
-                if (dto.LampiranFile != null)
-                {
-                    var folder = Path.Combine("uploads", "meninggal", "lampiran");
-                    Directory.CreateDirectory(folder);
+                // Karena LampiranFile sekarang required, selalu ada file baru
+                var folder = Path.Combine("uploads", "meninggal", "lampiran");
+                Directory.CreateDirectory(folder);
 
-                    fileName = $"{Guid.NewGuid()}_{dto.LampiranFile.FileName}";
-                    var filePath = Path.Combine(folder, fileName);
+                var fileName = $"{Guid.NewGuid()}_{dto.LampiranFile.FileName}";
+                var filePath = Path.Combine(folder, fileName);
 
-                    using var stream = new FileStream(filePath, FileMode.Create);
-                    await dto.LampiranFile.CopyToAsync(stream);
-                    
-                }
+                using var stream = new FileStream(filePath, FileMode.Create);
+                await dto.LampiranFile.CopyToAsync(stream);
 
-                var lampiranValue = fileName ?? dto.Lampiran ?? "";
+                // Gunakan file baru atau fallback ke dto.Lampiran
+                var lampiranValue = fileName ?? dto.Lampiran;
 
                 var sql = @"
                     UPDATE sia_msmeninggaldunia 
                     SET mdu_lampiran = @lampiran,
+                        mhs_id = @mhsId,
                         mdu_modif_by = @updatedBy,
-                        mdu_modif_date = GETDATE()";
-
-                if (!string.IsNullOrEmpty(dto.MhsId))
-                {
-                    sql += ", mhs_id = @mhsId";
-                }
-
-                sql += " WHERE mdu_id = @id";
+                        mdu_modif_date = GETDATE()
+                    WHERE mdu_id = @id";
 
                 await using var cmd = new SqlCommand(sql, conn);
                 cmd.Parameters.AddWithValue("@id", id);
                 cmd.Parameters.AddWithValue("@lampiran", lampiranValue);
+                cmd.Parameters.AddWithValue("@mhsId", dto.MhsId);
                 cmd.Parameters.AddWithValue("@updatedBy", updatedBy);
-                
-                if (!string.IsNullOrEmpty(dto.MhsId))
-                {
-                    cmd.Parameters.AddWithValue("@mhsId", dto.MhsId);
-                }
 
                 var rows = await cmd.ExecuteNonQueryAsync();
 

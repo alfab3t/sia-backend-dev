@@ -247,21 +247,19 @@ namespace astratech_apps_backend.Controllers
 
                 var updatedBy = HttpContext.Items[userIdKey]?.ToString() ?? systemUser;
 
-                if (dto.LampiranFile != null)
+                // Karena LampiranFile sekarang required, selalu ada file
+                var fileExtension = Path.GetExtension(dto.LampiranFile.FileName).ToLowerInvariant();
+                
+                if (!allowedExtensions.Contains(fileExtension))
                 {
-                    var fileExtension = Path.GetExtension(dto.LampiranFile.FileName).ToLowerInvariant();
-                    
-                    if (!allowedExtensions.Contains(fileExtension))
-                    {
-                        return BadRequest(new { 
-                            message = $"Tipe file tidak diizinkan. Gunakan: {string.Join(", ", allowedExtensions)}" 
-                        });
-                    }
+                    return BadRequest(new { 
+                        message = $"Tipe file tidak diizinkan. Gunakan: {string.Join(", ", allowedExtensions)}" 
+                    });
+                }
 
-                    if (dto.LampiranFile.Length > maxFileSize)
-                    {
-                        return BadRequest(new { message = "Ukuran file maksimal 10MB." });
-                    }
+                if (dto.LampiranFile.Length > maxFileSize)
+                {
+                    return BadRequest(new { message = "Ukuran file maksimal 10MB." });
                 }
 
                 var success = await _repository.UpdateAsync(id, dto, updatedBy);
@@ -278,7 +276,7 @@ namespace astratech_apps_backend.Controllers
                     message = "Data berhasil diperbarui.",
                     id = id,
                     updatedBy = updatedBy,
-                    hasFile = dto.LampiranFile != null,
+                    hasFile = true, // Selalu true karena file required
                     mhsId = dto.MhsId
                 });
             }
