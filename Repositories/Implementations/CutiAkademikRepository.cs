@@ -452,25 +452,25 @@ namespace astratech_apps_backend.Repositories.Implementations
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
 
+                // Detect user role first
+                var userRole = await DetectUserRoleAsync(dto.Username);
+                
                 var cmd = new SqlCommand("sia_tolakCutiAkademik", conn)
                 {
                     CommandType = CommandType.StoredProcedure
                 };
 
                 cmd.Parameters.AddWithValue("@CutiAkademikId", dto.Id);
-                cmd.Parameters.AddWithValue("@Username", dto.Username);  // Hanya username
-                cmd.Parameters.AddWithValue("@Keterangan", "");
-                // Tidak perlu @Role lagi karena SP auto-detect
+                cmd.Parameters.AddWithValue("@Role", userRole); // Role yang sudah di-detect
+                cmd.Parameters.AddWithValue("@Keterangan", ""); // Kosong untuk sementara
 
                 await cmd.ExecuteNonQueryAsync();
                 
-                // Return true jika tidak ada exception
-                // SP sudah handle business logic-nya
                 return true;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                throw new InvalidOperationException($"RejectCutiAsync error: {ex.Message}");
+                throw new InvalidOperationException("Terjadi kesalahan saat menolak cuti akademik.");
             }
         }
 
