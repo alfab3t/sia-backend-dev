@@ -19,5 +19,13 @@ namespace astratech_apps_backend.Repositories.Interfaces
         Task<bool> RejectCutiAsync(RejectCutiAkademikRequest dto);
         Task<string> DetectUserRoleAsync(string username);
         Task<bool> UploadSKAsync(UploadSKCutiAkademikRequest dto);
+        
+        // New methods for additional functionality
+        Task<MahasiswaDetailDto?> GetDetailMahasiswaAsync(string mahasiswaId);
+        Task<BebasTanggunganDto?> CheckBebasTanggunganAsync(string userId);
+        Task<ProfilMahasiswaDto?> GetProfilMahasiswaAsync(string nim);
+        Task<IEnumerable<KonsentrasiDropdownDto>> GetKonsentrasiBySekprodAsync(string username);
+        Task<MahasiswaByNimDto?> GetMahasiswaByNimAsync(string nim);
+        Task<IEnumerable<MahasiswaByKonsentrasiDto>> GetMahasiswaByKonsentrasiAsync(string username);
     }
 }
