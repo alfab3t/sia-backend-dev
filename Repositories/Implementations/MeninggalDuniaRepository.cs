@@ -8,7 +8,10 @@ namespace astratech_apps_backend.Repositories.Implementations
 {
     public class MeninggalDuniaRepository(IConfiguration config) : IMeninggalDuniaRepository
     {
-        private readonly string _conn = PolmanAstraLibrary.PolmanAstraLibrary.Decrypt(config.GetConnectionString("DefaultConnection")!, Environment.GetEnvironmentVariable("DECRYPT_KEY_CONNECTION_STRING"));
+        private readonly string _conn = PolmanAstraLibrary.PolmanAstraLibrary.Decrypt(
+            config.GetConnectionString("DefaultConnection")!, 
+            Environment.GetEnvironmentVariable("DECRYPT_KEY_CONNECTION_STRING")
+        );
 
         public async Task<string> CreateAsync(CreateMeninggalDuniaRequest dto, string createdBy)
         {
@@ -17,67 +20,63 @@ namespace astratech_apps_backend.Repositories.Implementations
 
         public async Task<string> CreateWithMahasiswaDataAsync(string mhsId, string lampiranFileName, MahasiswaDetailDto mahasiswaData, string createdBy)
         {
-            await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_createMeninggalDunia", conn)
+            try
             {
-                CommandType = CommandType.StoredProcedure
-            };
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
+                
+                await using var cmd = new SqlCommand("sia_createMeninggalDunia", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
 
-            cmd.Parameters.AddWithValue("@Step", "STEP1");
-            cmd.Parameters.AddWithValue("@Lampiran", lampiranFileName ?? "");
-            cmd.Parameters.AddWithValue("@MahasiswaId", mhsId ?? "");
-            cmd.Parameters.AddWithValue("@CreatedBy", createdBy ?? "");
+                cmd.Parameters.AddWithValue("@Step", "STEP1");
+                cmd.Parameters.AddWithValue("@Lampiran", lampiranFileName ?? "");
+                cmd.Parameters.AddWithValue("@MahasiswaId", mhsId ?? "");
+                cmd.Parameters.AddWithValue("@CreatedBy", createdBy ?? "");
 
-            await conn.OpenAsync();
-            await cmd.ExecuteNonQueryAsync();
-
-            var getDraftIdCmd = new SqlCommand(
-                "SELECT TOP 1 mdu_id FROM sia_msmeninggaldunia WHERE mdu_id NOT LIKE '%MD%' ORDER BY mdu_created_date DESC", 
-                conn);
-            var draftId = await getDraftIdCmd.ExecuteScalarAsync();
-
-            return draftId?.ToString() ?? "DRAFT_CREATED";
+                await cmd.ExecuteNonQueryAsync();
+                return "DRAFT_CREATED";
+            }
+            catch (Exception)
+            {
+                return "";
+            }
         }
 
         public async Task<MahasiswaDetailDto?> GetMahasiswaDetailAsync(string mhsId)
         {
-            await using var conn = new SqlConnection(_conn);
-            
-            var sql = @"
-                SELECT 
-                    m.mhs_id,
-                    m.mhs_nama,
-                    m.mhs_angkatan,
-                    p.pro_nama as program_studi,
-                    p.pro_singkatan as program_studi_singkatan,
-                    k.kon_nama as konsentrasi,
-                    k.kon_id as konsentrasi_id
-                FROM sia_msmahasiswa m
-                LEFT JOIN sia_mskonsentrasi k ON m.kon_id = k.kon_id
-                LEFT JOIN sia_msprodi p ON k.pro_id = p.pro_id
-                WHERE m.mhs_id = @mhsId";
-
-            await using var cmd = new SqlCommand(sql, conn);
-            cmd.Parameters.AddWithValue("@mhsId", mhsId);
-
-            await conn.OpenAsync();
-            await using var reader = await cmd.ExecuteReaderAsync();
-
-            if (await reader.ReadAsync())
+            try
             {
-                return new MahasiswaDetailDto
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
+                
+                await using var cmd = new SqlCommand("sia_getDetailMeninggalDunia", conn)
                 {
-                    MhsId = reader["mhs_id"].ToString() ?? "",
-                    MhsNama = reader["mhs_nama"].ToString() ?? "",
-                    MhsAngkatan = reader["mhs_angkatan"].ToString() ?? "",
-                    ProgramStudi = reader["program_studi"].ToString() ?? "",
-                    ProgramStudiSingkatan = reader["program_studi_singkatan"].ToString() ?? "",
-                    Konsentrasi = reader["konsentrasi"].ToString() ?? "",
-                    KonsentrasiId = reader["konsentrasi_id"].ToString() ?? ""
+                    CommandType = CommandType.StoredProcedure
                 };
-            }
 
-            return null;
+                cmd.Parameters.AddWithValue("@MeninggalDuniaId", mhsId);
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                if (await reader.ReadAsync())
+                {
+                    return new MahasiswaDetailDto
+                    {
+                        MhsId = reader["mhs_id"]?.ToString() ?? "",
+                        MhsNama = reader["mhs_nama"]?.ToString() ?? "",
+                        MhsAngkatan = reader["mhs_angkatan"]?.ToString() ?? "",
+                        Konsentrasi = reader["kon_nama"]?.ToString() ?? "",
+                        KonsentrasiId = reader["kon_singkatan"]?.ToString() ?? ""
+                    };
+                }
+                
+                return null;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
         }
 
         public async Task<string> FinalizeAsync(string draftId, string updatedBy)
@@ -87,992 +86,234 @@ namespace astratech_apps_backend.Repositories.Implementations
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
 
-                var checkSql = "SELECT mdu_status FROM sia_msmeninggaldunia WHERE mdu_id = @draftId";
-                await using var checkCmd = new SqlCommand(checkSql, conn);
-                checkCmd.Parameters.AddWithValue("@draftId", draftId);
+                await using var cmd = new SqlCommand("sia_createMeninggalDunia", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
                 
-                var currentStatus = (await checkCmd.ExecuteScalarAsync())?.ToString();
-                if (string.IsNullOrEmpty(currentStatus))
+                cmd.Parameters.AddWithValue("@Step", "STEP2");
+                cmd.Parameters.AddWithValue("@Lampiran", draftId);
+                cmd.Parameters.AddWithValue("@MahasiswaId", updatedBy);
+                cmd.Parameters.AddWithValue("@CreatedBy", updatedBy);
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
                 {
-                    return "";
+                    return reader["idbaru"]?.ToString() ?? "";
                 }
-
-                if (currentStatus != "Draft")
-                {
-                    
-                    if (draftId.Contains("PA/MD"))
-                    {
-                        return draftId;
-                    }
-                    
-                    return "";
-                }
-
-                var officialId = await GenerateOfficialIdAsync(conn);
-                if (string.IsNullOrEmpty(officialId))
-                {
-                    return "";
-                }
-
-                var updateSql = @"
-                    UPDATE sia_msmeninggaldunia 
-                    SET mdu_id = @officialId,
-                        mdu_status = 'Belum Disetujui Wadir 1',
-                        mdu_modif_by = @updatedBy,
-                        mdu_modif_date = GETDATE()
-                    WHERE mdu_id = @draftId";
-
-                await using var updateCmd = new SqlCommand(updateSql, conn);
-                updateCmd.Parameters.AddWithValue("@officialId", officialId);
-                updateCmd.Parameters.AddWithValue("@draftId", draftId);
-                updateCmd.Parameters.AddWithValue("@updatedBy", updatedBy);
-
-                var rowsAffected = await updateCmd.ExecuteNonQueryAsync();
-
-                if (rowsAffected > 0)
-                {
-                    return officialId;
-                }
-                else
-                {
-                    return "";
-                }
-            }
-            catch
-            {
-                throw;
-            }
-        }
-
-        private async Task<string> GenerateOfficialIdAsync(SqlConnection conn)
-        {
-            try
-            {
-                var dateInfo = GetCurrentDateInfo();
-                var maxSequence = await GetMaxSequenceAsync(conn, dateInfo.romanMonth, dateInfo.year);
                 
-                return await GenerateUniqueIdAsync(conn, dateInfo.romanMonth, dateInfo.year, maxSequence + 1);
+                return "";
             }
-            catch
+            catch (Exception)
             {
                 return "";
             }
         }
 
-        private (string romanMonth, int year) GetCurrentDateInfo()
-        {
-            var now = DateTime.Now;
-            var romanMonth = GetRomanNumeral(now.Month);
-            return (romanMonth, now.Year);
-        }
-
-        private async Task<int> GetMaxSequenceAsync(SqlConnection conn, string romanMonth, int year)
-        {
-            var maxSql = @"
-                SELECT ISNULL(MAX(
-                    CASE 
-                        WHEN mdu_id LIKE '[0-9][0-9][0-9]/PA/MD/' + @romanMonth + '/' + @year
-                        THEN CAST(LEFT(mdu_id, 3) AS INT)
-                        ELSE 0
-                    END
-                ), 0) as MaxSequence
-                FROM sia_msmeninggaldunia 
-                WHERE mdu_id LIKE '%/PA/MD/' + @romanMonth + '/' + @year + '%'";
-
-            await using var maxCmd = new SqlCommand(maxSql, conn);
-            maxCmd.Parameters.AddWithValue("@romanMonth", romanMonth);
-            maxCmd.Parameters.AddWithValue("@year", year.ToString());
-
-            var result = await maxCmd.ExecuteScalarAsync();
-            return result != null ? (int)result : 0;
-        }
-
-        private async Task<string> GenerateUniqueIdAsync(SqlConnection conn, string romanMonth, int year, int startNumber)
-        {
-            const int maxAttempts = 100;
-            
-            for (int attempt = 0; attempt < maxAttempts; attempt++)
-            {
-                var candidateId = $"{(startNumber + attempt):D3}/PA/MD/{romanMonth}/{year}";
-                
-                if (await IsIdUniqueAsync(conn, candidateId))
-                {
-                    return candidateId;
-                }
-            }
-            
-            return "";
-        }
-
-        private async Task<bool> IsIdUniqueAsync(SqlConnection conn, string candidateId)
-        {
-            var existsSql = "SELECT COUNT(*) FROM sia_msmeninggaldunia WHERE mdu_id = @officialId";
-            await using var existsCmd = new SqlCommand(existsSql, conn);
-            existsCmd.Parameters.AddWithValue("@officialId", candidateId);
-
-            var existsResult = await existsCmd.ExecuteScalarAsync();
-            var exists = existsResult != null ? (int)existsResult : 0;
-            
-            return exists == 0;
-        }
-
-        private string GetRomanNumeral(int month)
-        {
-            return month switch
-            {
-                1 => "I",
-                2 => "II", 
-                3 => "III",
-                4 => "IV",
-                5 => "V",
-                6 => "VI",
-                7 => "VII",
-                8 => "VIII",
-                9 => "IX",
-                10 => "X",
-                11 => "XI",
-                12 => "XII",
-                _ => "I"
-            };
-        }
-
         public async Task<IEnumerable<MahasiswaDropdownDto>> GetMahasiswaListAsync(string? search = null)
         {
-            await using var conn = new SqlConnection(_conn);
+            var result = new List<MahasiswaDropdownDto>();
             
-            var sql = @"
-                SELECT 
-                    m.mhs_id,
-                    m.mhs_nama,
-                    m.mhs_angkatan,
-                    p.pro_nama as program_studi,
-                    k.kon_nama as konsentrasi
-                FROM sia_msmahasiswa m
-                LEFT JOIN sia_mskonsentrasi k ON m.kon_id = k.kon_id
-                LEFT JOIN sia_msprodi p ON k.pro_id = p.pro_id
-                WHERE m.mhs_status = 'Aktif'";
-
-            if (!string.IsNullOrEmpty(search))
+            try
             {
-                sql += " AND (UPPER(m.mhs_nama) LIKE '%' + UPPER(@search) + '%' OR UPPER(m.mhs_id) LIKE '%' + UPPER(@search) + '%')";
-            }
-
-            sql += " ORDER BY m.mhs_nama";
-
-            await using var cmd = new SqlCommand(sql, conn);
-            
-            if (!string.IsNullOrEmpty(search))
-                cmd.Parameters.AddWithValue("@search", search);
-
-            await conn.OpenAsync();
-            await using var reader = await cmd.ExecuteReaderAsync();
-
-            var list = new List<MahasiswaDropdownDto>();
-            while (await reader.ReadAsync())
-            {
-                list.Add(new MahasiswaDropdownDto
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
+                
+                await using var cmd = new SqlCommand("lpm_getListMahasiswa", conn)
                 {
-                    MhsId = reader["mhs_id"].ToString() ?? "",
-                    MhsNama = reader["mhs_nama"].ToString() ?? "",
-                    MhsAngkatan = reader["mhs_angkatan"].ToString() ?? "",
-                    ProgramStudi = reader["program_studi"].ToString() ?? "",
-                    Konsentrasi = reader["konsentrasi"].ToString() ?? ""
-                });
-            }
+                    CommandType = CommandType.StoredProcedure
+                };
 
-            return list;
+                // SP membutuhkan 50 parameter
+                for (int i = 1; i <= 50; i++)
+                {
+                    cmd.Parameters.AddWithValue($"@p{i}", i == 1 ? (search ?? "") : "");
+                }
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    result.Add(new MahasiswaDropdownDto
+                    {
+                        MhsId = reader["Value"]?.ToString() ?? "",
+                        MhsNama = reader["Text"]?.ToString() ?? "",
+                        MhsAngkatan = "",
+                        ProgramStudi = "",
+                        Konsentrasi = ""
+                    });
+                }
+            }
+            catch (Exception)
+            {
+                // Return empty list on error
+            }
+            
+            return result;
         }
 
         public async Task<IEnumerable<ProgramStudiDropdownDto>> GetProgramStudiListAsync()
         {
-            await using var conn = new SqlConnection(_conn);
+            var result = new List<ProgramStudiDropdownDto>();
             
-            var sql = @"
-                SELECT 
-                    pro_id,
-                    pro_nama,
-                    pro_singkatan
-                FROM sia_msprodi
-                WHERE pro_status = 'Aktif'
-                ORDER BY pro_nama";
-
-            await using var cmd = new SqlCommand(sql, conn);
-            await conn.OpenAsync();
-            await using var reader = await cmd.ExecuteReaderAsync();
-
-            var list = new List<ProgramStudiDropdownDto>();
-            while (await reader.ReadAsync())
+            try
             {
-                list.Add(new ProgramStudiDropdownDto
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
+                
+                await using var cmd = new SqlCommand("sia_getListKonsentrasiBySekprod", conn)
                 {
-                    ProId = reader["pro_id"].ToString() ?? "",
-                    ProNama = reader["pro_nama"].ToString() ?? "",
-                    ProSingkatan = reader["pro_singkatan"].ToString() ?? ""
-                });
-            }
+                    CommandType = CommandType.StoredProcedure
+                };
 
-            return list;
+                // SP membutuhkan 50 parameter
+                for (int i = 1; i <= 50; i++)
+                {
+                    cmd.Parameters.AddWithValue($"@p{i}", "");
+                }
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    result.Add(new ProgramStudiDropdownDto
+                    {
+                        ProId = reader["id"]?.ToString() ?? "",
+                        ProNama = reader["nama"]?.ToString() ?? ""
+                    });
+                }
+            }
+            catch (Exception)
+            {
+                // Return empty list on error
+            }
+            
+            return result;
         }
 
         public async Task<bool> UpdateSKAsync(string id, string sk, string spkb, string updatedBy)
         {
-            await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_createSKMeninggalDunia", conn)
+            try
             {
-                CommandType = CommandType.StoredProcedure
-            };
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
 
-            cmd.Parameters.AddWithValue("@MeninggalDuniaId", id);
-            cmd.Parameters.AddWithValue("@SuratKeteranganMeninggalDunia", sk);
-            cmd.Parameters.AddWithValue("@SuratKeteranganPernahBerkuliah", spkb);
-            cmd.Parameters.AddWithValue("@ModifiedBy", updatedBy);
-
-            await conn.OpenAsync();
-            var rows = await cmd.ExecuteNonQueryAsync();
-            return rows > 0;
-        }
-
-
-        public async Task<IEnumerable<MeninggalDuniaListResponse>> GetAllAsync(string status, string roleId)
-        {
-            var list = new List<MeninggalDuniaListResponse>();
-
-            await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_getDataMeninggalDunia", conn)
-            {
-                CommandType = CommandType.StoredProcedure
-            };
-
-            cmd.Parameters.AddWithValue("@Status", status ?? "");
-            cmd.Parameters.AddWithValue("@RoleId", roleId ?? "");
-
-            await conn.OpenAsync();
-            await using var reader = await cmd.ExecuteReaderAsync();
-
-            while (await reader.ReadAsync())
-            {
-                list.Add(new MeninggalDuniaListResponse
+                await using var cmd = new SqlCommand("sia_createSKMeninggalDunia", conn)
                 {
-                    Id = reader["mdu_id"]?.ToString() ?? "",
-                    IdAlternative = reader["mdu_id_alternative"]?.ToString() ?? "",
-                    MhsId = reader["mhs_id"]?.ToString() ?? "",
-                    ApproveDir1By = reader["mdu_approve_dir1_by"]?.ToString() ?? "",
-                    CreatedDate = reader["mdu_created_date"]?.ToString() ?? "",
-                    TanggalBuat = reader["tanggal_buat"] as DateTime? ?? DateTime.MinValue,
-                    SuratNo = reader["srt_no"]?.ToString() ?? "",
-                    Status = reader["mdu_status"]?.ToString() ?? ""
-                });
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                cmd.Parameters.AddWithValue("@MeninggalDuniaId", id);
+                cmd.Parameters.AddWithValue("@SuratKeteranganMeninggalDunia", sk);
+                cmd.Parameters.AddWithValue("@SuratKeteranganPernahBerkuliah", spkb);
+                cmd.Parameters.AddWithValue("@ModifiedBy", updatedBy);
+
+                await cmd.ExecuteNonQueryAsync();
+                return true;
             }
-
-            return list;
-        }
-
-
-        public async Task<(IEnumerable<MeninggalDuniaListDto> Data, int TotalData)>
-        GetAllAsync(GetAllMeninggalDuniaRequest req)
-        {
-            await using var conn = new SqlConnection(_conn);
-            
-            var sql = BuildGetAllQuery(req);
-            var cmd = CreateGetAllCommand(conn, sql, req);
-            
-            await conn.OpenAsync();
-            var reader = await cmd.ExecuteReaderAsync();
-            
-            var list = await ProcessDataReaderAsync(reader);
-            list = ApplySearchFilter(list, req.SearchKeyword);
-            list = ApplySorting(list, req.Sort);
-            
-            var total = list.Count;
-            var pagedList = ApplyPaging(list, req.PageNumber, req.PageSize);
-            
-            return (pagedList, total);
-        }
-
-        private string BuildGetAllQuery(GetAllMeninggalDuniaRequest req)
-        {
-            var sql = @"
-                SELECT 
-                    a.mdu_id,
-                    (case when CHARINDEX('PA',a.mdu_id) > 0 then a.mdu_id else 'Draft' end) as mdu_id_alternative,
-                    a.mhs_id,
-                    a.mdu_approve_dir1_by,
-                    CONVERT(VARCHAR(11),a.mdu_created_date,106) AS mdu_created_date,
-                    a.mdu_created_date as tanggal_buat,
-                    a.srt_no,
-                    a.mdu_status,
-                    ISNULL(b.mhs_nama, '') as mhs_nama,
-                    ISNULL(b.mhs_id, '') as nim,
-                    ISNULL(d.pro_nama, '') as pro_nama
-                FROM sia_msmeninggaldunia a
-                LEFT JOIN sia_msmahasiswa b ON a.mhs_id = b.mhs_id
-                LEFT JOIN sia_mskonsentrasi c ON b.kon_id = c.kon_id
-                LEFT JOIN sia_msprodi d ON c.pro_id = d.pro_id
-                WHERE a.mdu_status != 'Dihapus'";
-
-            if (!string.IsNullOrEmpty(req.Status))
-                sql += " AND a.mdu_status = @Status";
-
-            if (!string.IsNullOrEmpty(req.RoleId))
-                sql += " AND c.kon_npk = @RoleId";
-
-            sql += " ORDER BY a.mdu_created_date DESC";
-            return sql;
-        }
-
-        private SqlCommand CreateGetAllCommand(SqlConnection conn, string sql, GetAllMeninggalDuniaRequest req)
-        {
-            var cmd = new SqlCommand(sql, conn);
-            
-            if (!string.IsNullOrEmpty(req.Status))
-                cmd.Parameters.AddWithValue("@Status", req.Status);
-            
-            if (!string.IsNullOrEmpty(req.RoleId))
-                cmd.Parameters.AddWithValue("@RoleId", req.RoleId);
-                
-            return cmd;
-        }
-
-        private async Task<List<MeninggalDuniaListDto>> ProcessDataReaderAsync(SqlDataReader reader)
-        {
-            var list = new List<MeninggalDuniaListDto>();
-
-            while (await reader.ReadAsync())
+            catch (Exception)
             {
-                var recordStatus = reader["mdu_status"]?.ToString() ?? "";
-                var createdDate = reader["tanggal_buat"] as DateTime?;
-                var nomorSK = GenerateNomorSK(reader, recordStatus, createdDate);
+                return false;
+            }
+        }
+
+        public async Task<(IEnumerable<MeninggalDuniaListDto> Data, int TotalData)> GetAllAsync(GetAllMeninggalDuniaRequest req)
+        {
+            var result = new List<MeninggalDuniaListDto>();
+            
+            try
+            {
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
                 
-                list.Add(new MeninggalDuniaListDto
+                await using var cmd = new SqlCommand("sia_getDataMeninggalDunia", conn)
                 {
-                    Id = reader["mdu_id"]?.ToString() ?? "",
-                    NoPengajuan = reader["mdu_id_alternative"]?.ToString() ?? "",
-                    TanggalPengajuan = reader["mdu_created_date"]?.ToString() ?? "",
-                    NamaMahasiswa = reader["mhs_nama"]?.ToString() ?? "",
-                    Nim = reader["nim"]?.ToString() ?? "",
-                    Prodi = reader["pro_nama"]?.ToString() ?? "",
-                    NomorSK = nomorSK,
-                    Status = recordStatus
-                });
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                cmd.Parameters.AddWithValue("@Status", req.Status ?? "");
+                cmd.Parameters.AddWithValue("@RoleId", req.RoleId ?? "");
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    result.Add(new MeninggalDuniaListDto
+                    {
+                        Id = reader["mdu_id"]?.ToString() ?? "",
+                        NoPengajuan = reader["mdu_id_alternative"]?.ToString() ?? "",
+                        TanggalPengajuan = reader["mdu_created_date"]?.ToString() ?? "",
+                        NamaMahasiswa = reader["mhs_nama"]?.ToString() ?? "",
+                        Nim = reader["nim"]?.ToString() ?? "",
+                        Prodi = reader["pro_nama"]?.ToString() ?? "",
+                        NomorSK = reader["srt_no"]?.ToString() ?? "-",
+                        Status = reader["mdu_status"]?.ToString() ?? ""
+                    });
+                }
+
+                // Apply search filter if needed
+                if (!string.IsNullOrEmpty(req.SearchKeyword))
+                {
+                    var keyword = req.SearchKeyword.ToLower();
+                    result = result.Where(x => 
+                        x.NoPengajuan.ToLower().Contains(keyword) ||
+                        x.NamaMahasiswa.ToLower().Contains(keyword) ||
+                        x.Nim.ToLower().Contains(keyword)
+                    ).ToList();
+                }
+
+                var total = result.Count;
+
+                // Apply pagination
+                result = result.Skip((req.PageNumber - 1) * req.PageSize)
+                              .Take(req.PageSize)
+                              .ToList();
+
+                return (result, total);
             }
-            
-            return list;
-        }
-
-        private string GenerateNomorSK(SqlDataReader reader, string recordStatus, DateTime? createdDate)
-        {
-            string nomorSK = reader["srt_no"]?.ToString() ?? "";
-            
-            if (string.IsNullOrEmpty(nomorSK) && recordStatus == "Disetujui" && createdDate.HasValue)
+            catch (Exception)
             {
-                var month = createdDate.Value.Month;
-                var year = createdDate.Value.Year;
-                var romanMonth = ConvertToRoman(month);
-                var mduId = reader["mdu_id"]?.ToString() ?? "";
-                var sequence = GenerateSequenceFromMeninggalDuniaId(mduId);
-                nomorSK = $"{sequence:D3}/PA-WADIR-I/SKM/{romanMonth}/{year}";
+                return (new List<MeninggalDuniaListDto>(), 0);
             }
-            
-            return nomorSK;
-        }
-
-        private List<MeninggalDuniaListDto> ApplySearchFilter(List<MeninggalDuniaListDto> list, string? searchKeyword)
-        {
-            if (string.IsNullOrEmpty(searchKeyword))
-                return list;
-
-            var q = searchKeyword.ToLower();
-            return list.Where(x =>
-                x.NoPengajuan.ToLower().Contains(q) ||
-                x.NamaMahasiswa.ToLower().Contains(q))
-                .ToList();
-        }
-
-        private List<MeninggalDuniaListDto> ApplySorting(List<MeninggalDuniaListDto> list, string? sort)
-        {
-            return sort switch
-            {
-                "mdu_created_date asc" => list.OrderBy(x => DateTime.Parse(x.TanggalPengajuan, System.Globalization.CultureInfo.InvariantCulture)).ToList(),
-                "mdu_created_date desc" => list.OrderByDescending(x => DateTime.Parse(x.TanggalPengajuan, System.Globalization.CultureInfo.InvariantCulture)).ToList(),
-                _ => list
-            };
-        }
-
-        private List<MeninggalDuniaListDto> ApplyPaging(List<MeninggalDuniaListDto> list, int pageNumber, int pageSize)
-        {
-            return list
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
         }
 
         public async Task<MeninggalDuniaReportResponse?> GetReportAsync(string id)
         {
-            await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_reportMeninggalDunia", conn)
-            {
-                CommandType = CommandType.StoredProcedure
-            };
-
-            cmd.Parameters.AddWithValue("@p1", id);
-
-            await conn.OpenAsync();
-            using var reader = await cmd.ExecuteReaderAsync();
-
-            if (!await reader.ReadAsync())
-                return null;
-
-            return new MeninggalDuniaReportResponse
-            {
-                MhsId = reader["mhs_id"]?.ToString() ?? "",
-                MhsNama = reader["mhs_nama"]?.ToString() ?? "",
-                Konsentrasi = reader["kon_nama"]?.ToString() ?? "",
-                TahunAjaran = reader["srt_tahun_ajaran"]?.ToString() ?? "",
-                SuratNo = reader["srt_no"]?.ToString() ?? "",
-                Kaprodi = reader["pro_kaprodi"]?.ToString() ?? "",
-                Wadir = reader["wadir"]?.ToString() ?? "",
-                Direktur = reader["dir"]?.ToString() ?? ""
-            };
-        }
-
-
-
-
-        public async Task<MeninggalDunia?> GetByIdAsync(string id)
-        {
-            await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_detailMeninggalDunia", conn)
-            {
-                CommandType = CommandType.StoredProcedure
-            };
-
-            cmd.Parameters.AddWithValue("@mdu_id", id);
-
-            await conn.OpenAsync();
-            await using var reader = await cmd.ExecuteReaderAsync();
-
-            if (!await reader.ReadAsync())
-                return null;
-
-            return new MeninggalDunia
-            {
-                Id = reader["mdu_id"]?.ToString() ?? "",
-                MhsId = reader["mhs_id"]?.ToString() ?? "",
-                Lampiran = reader["mdu_lampiran"]?.ToString() ?? "",
-                ApproveDir1By = reader["mdu_approve_dir1_by"]?.ToString() ?? "",
-                ApproveDir1Date = reader["mdu_approve_dir1_date"] as DateTime?,
-                SrtNo = reader["srt_no"]?.ToString() ?? "",
-                NoSpkb = reader["mdu_no_spkb"]?.ToString() ?? "",
-                Sk = reader["mdu_sk"]?.ToString() ?? "",
-                Spkb = reader["mdu_spkb"]?.ToString() ?? "",
-                Status = reader["mdu_status"]?.ToString() ?? "",
-                CreatedBy = reader["mdu_created_by"]?.ToString() ?? "",
-                CreatedDate = reader["mdu_created_date"] as DateTime?,
-                ModifiedBy = reader["mdu_modif_by"]?.ToString() ?? "",
-                ModifiedDate = reader["mdu_modif_date"] as DateTime?
-            };
-        }
-
-
-        public async Task<bool> UpdateAsync(string id, UpdateMeninggalDuniaRequest dto, string updatedBy)
-        {
             try
             {
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
-
-                // Karena LampiranFile sekarang required, selalu ada file baru
-                var folder = Path.Combine("uploads", "meninggal", "lampiran");
-                Directory.CreateDirectory(folder);
-
-                var fileName = $"{Guid.NewGuid()}_{dto.LampiranFile.FileName}";
-                var filePath = Path.Combine(folder, fileName);
-
-                using var stream = new FileStream(filePath, FileMode.Create);
-                await dto.LampiranFile.CopyToAsync(stream);
-
-                // Gunakan file baru atau fallback ke dto.Lampiran
-                var lampiranValue = fileName ?? dto.Lampiran;
-
-                var sql = @"
-                    UPDATE sia_msmeninggaldunia 
-                    SET mdu_lampiran = @lampiran,
-                        mhs_id = @mhsId,
-                        mdu_modif_by = @updatedBy,
-                        mdu_modif_date = GETDATE()
-                    WHERE mdu_id = @id";
-
-                await using var cmd = new SqlCommand(sql, conn);
-                cmd.Parameters.AddWithValue("@id", id);
-                cmd.Parameters.AddWithValue("@lampiran", lampiranValue);
-                cmd.Parameters.AddWithValue("@mhsId", dto.MhsId);
-                cmd.Parameters.AddWithValue("@updatedBy", updatedBy);
-
-                var rows = await cmd.ExecuteNonQueryAsync();
-
-                if (rows > 0)
-                {
-                    return true;
-                }
-
-                await using var spCmd = new SqlCommand("sia_editMeninggalDunia", conn)
+                
+                await using var cmd = new SqlCommand("sia_reportMeninggalDunia", conn)
                 {
                     CommandType = CommandType.StoredProcedure
                 };
 
-                spCmd.Parameters.AddWithValue("@MeninggalDuniaId", id);
-                spCmd.Parameters.AddWithValue("@Lampiran", lampiranValue);
-                spCmd.Parameters.AddWithValue("@ModifiedBy", updatedBy);
+                cmd.Parameters.AddWithValue("@p1", id);
 
-                var spRows = await spCmd.ExecuteNonQueryAsync();
+                await using var reader = await cmd.ExecuteReaderAsync();
 
-                return spRows > 0;
-            }
-            catch
-            {
-                throw;
-            }
-        }
-
-
-
-
-        
-        public async Task<bool> SoftDeleteAsync(string id, string updatedBy)
-        {
-            try
-            {
-                await using var conn = new SqlConnection(_conn);
-                await conn.OpenAsync();
-                
-                var directSql = @"
-                    UPDATE sia_msmeninggaldunia 
-                    SET mdu_status = 'Dihapus',
-                        mdu_modif_by = @updatedBy,
-                        mdu_modif_date = GETDATE()
-                    WHERE mdu_id = @id";
-
-                await using var directCmd = new SqlCommand(directSql, conn);
-                directCmd.Parameters.AddWithValue("@id", id);
-                directCmd.Parameters.AddWithValue("@updatedBy", updatedBy);
-
-                var directRows = await directCmd.ExecuteNonQueryAsync();
-
-
-                if (directRows > 0)
+                if (await reader.ReadAsync())
                 {
-                    return true;
-                }
-
-                await using var spCmd = new SqlCommand("sia_deleteMeninggalDunia", conn)
-                {
-                    CommandType = CommandType.StoredProcedure
-                };
-
-                spCmd.Parameters.AddWithValue("@MeninggalDuniaId", id);
-                spCmd.Parameters.AddWithValue("@ModifiedBy", updatedBy);
-
-                var spRows = await spCmd.ExecuteNonQueryAsync();
-
-                return spRows > 0;
-            }
-            catch
-            {
-                throw;
-            }
-        }
-
-
-        public async Task<bool> UploadSKAsync(string id, string sk, string spkb, string updatedBy)
-        {
-            try
-            {
-
-                await using var conn = new SqlConnection(_conn);
-                await conn.OpenAsync();
-
-                var checkCmd = new SqlCommand(
-                    "SELECT mdu_id, mdu_status FROM sia_msmeninggaldunia WHERE mdu_id = @id", conn);
-                checkCmd.Parameters.AddWithValue("@id", id);
-
-                var reader = await checkCmd.ExecuteReaderAsync();
-                if (!await reader.ReadAsync())
-                {
-                    await reader.CloseAsync();
-                    return false;
-                }
-
-                var currentStatus = reader["mdu_status"].ToString();
-                await reader.CloseAsync();
-                
-
-                if (currentStatus != "Menunggu Upload SK" && currentStatus != "Disetujui")
-                {
-                    return false;
-                }
-
-                var skNumber = await GenerateMeninggalDuniaSKNumberAsync(conn);
-
-                var updateCmd = new SqlCommand(@"
-                    UPDATE sia_msmeninggaldunia 
-                    SET mdu_sk = @sk,
-                        mdu_spkb = @spkb,
-                        mdu_status = 'Disetujui',
-                        mdu_modif_by = @updatedBy,
-                        mdu_modif_date = GETDATE()
-                    WHERE mdu_id = @id;
-                    
-                    -- Also update mahasiswa status
-                    UPDATE sia_msmahasiswa 
-                    SET mhs_status_kuliah = 'Meninggal Dunia' 
-                    WHERE mhs_id = (SELECT mhs_id FROM sia_msmeninggaldunia WHERE mdu_id = @id);", conn);
-
-                updateCmd.Parameters.AddWithValue("@id", id);
-                updateCmd.Parameters.AddWithValue("@sk", sk);
-                updateCmd.Parameters.AddWithValue("@spkb", spkb);
-                updateCmd.Parameters.AddWithValue("@updatedBy", updatedBy);
-
-                var rowsAffected = await updateCmd.ExecuteNonQueryAsync();
-
-                if (rowsAffected > 0)
-                {
-                    
-                    var verifyCmd = new SqlCommand(
-                        "SELECT mdu_sk, mdu_spkb, mdu_status FROM sia_msmeninggaldunia WHERE mdu_id = @id", conn);
-                    verifyCmd.Parameters.AddWithValue("@id", id);
-                    
-                    var verifyReader = await verifyCmd.ExecuteReaderAsync();
-                    if (await verifyReader.ReadAsync())
+                    return new MeninggalDuniaReportResponse
                     {
-                        var finalSk = verifyReader["mdu_sk"]?.ToString() ?? "";
-                        var finalSpkb = verifyReader["mdu_spkb"]?.ToString() ?? "";
-                        var finalStatus = verifyReader["mdu_status"]?.ToString() ?? "";
-                    }
-                    await verifyReader.CloseAsync();
-                    
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-            catch
-            {
-                throw;
-            }
-        }
-
-        private async Task<string> GenerateMeninggalDuniaSKNumberAsync(SqlConnection conn)
-        {
-            try
-            {
-                var dateInfo = GetCurrentDateInfoForMeninggalDunia();
-                var maxSequence = await GetMaxSequenceForMeninggalDuniaAsync(conn, dateInfo.year);
-                return await GenerateUniqueMeninggalDuniaSkNumberAsync(conn, dateInfo.romanMonth, dateInfo.year, maxSequence + 1);
-            }
-            catch
-            {
-                var now = DateTime.Now;
-                var romanMonth = ConvertToRoman(now.Month);
-                return $"999/PA-WADIR-I/SKM/{romanMonth}/{now.Year}";
-            }
-        }
-
-        private (string romanMonth, int year) GetCurrentDateInfoForMeninggalDunia()
-        {
-            var now = DateTime.Now;
-            return (ConvertToRoman(now.Month), now.Year);
-        }
-
-        private async Task<int> GetMaxSequenceForMeninggalDuniaAsync(SqlConnection conn, int year)
-        {
-            var getLastSkCmd = new SqlCommand(@"
-                SELECT srt_no 
-                FROM sia_msmeninggaldunia 
-                WHERE srt_no LIKE '%/PA-WADIR-I/SKM/%/' + CAST(@year AS VARCHAR(4))
-                  AND srt_no IS NOT NULL 
-                  AND srt_no != ''
-                  AND LEN(srt_no) > 10
-                ORDER BY srt_no DESC", conn);
-            
-            getLastSkCmd.Parameters.AddWithValue("@year", year);
-            
-            var reader = await getLastSkCmd.ExecuteReaderAsync();
-            int maxSequence = 0;
-            
-            while (await reader.ReadAsync())
-            {
-                var srtNo = reader["srt_no"]?.ToString() ?? "";
-                var sequence = ExtractSequenceFromMeninggalDuniaSkNumber(srtNo);
-                if (sequence > maxSequence)
-                {
-                    maxSequence = sequence;
-                }
-            }
-            await reader.CloseAsync();
-            
-            return maxSequence;
-        }
-
-        private int ExtractSequenceFromMeninggalDuniaSkNumber(string srtNo)
-        {
-            if (string.IsNullOrEmpty(srtNo) || srtNo.Length < 3)
-                return 0;
-
-            try
-            {
-                var sequenceStr = srtNo.Substring(0, 3);
-                return int.TryParse(sequenceStr, out int sequence) ? sequence : 0;
-            }
-            catch
-            {
-                return 0;
-            }
-        }
-
-        private async Task<string> GenerateUniqueMeninggalDuniaSkNumberAsync(SqlConnection conn, string romanMonth, int year, int startSequence)
-        {
-            string skFormat = $"/PA-WADIR-I/SKM/{romanMonth}/{year}";
-            
-            for (int attempt = 0; attempt < 100; attempt++)
-            {
-                string candidateSkNumber = $"{(startSequence + attempt):D3}{skFormat}";
-                
-                if (await IsMeninggalDuniaSkNumberUniqueAsync(conn, candidateSkNumber))
-                {
-                    return candidateSkNumber;
-                }
-            }
-            
-            var timestamp = DateTimeOffset.Now.ToUnixTimeSeconds() % 999;
-            return $"{timestamp + 500:D3}{skFormat}";
-        }
-
-        private async Task<bool> IsMeninggalDuniaSkNumberUniqueAsync(SqlConnection conn, string candidateSkNumber)
-        {
-            var checkExistCmd = new SqlCommand(@"
-                SELECT COUNT(*) 
-                FROM sia_msmeninggaldunia 
-                WHERE srt_no = @candidateSkNumber", conn);
-            checkExistCmd.Parameters.AddWithValue("@candidateSkNumber", candidateSkNumber);
-            
-            var countResult = await checkExistCmd.ExecuteScalarAsync();
-            var count = countResult != null ? (int)countResult : 0;
-            return count == 0;
-        }
-
-        private int GenerateSequenceFromMeninggalDuniaId(string mduId)
-        {
-            try
-            {
-                if (string.IsNullOrEmpty(mduId))
-                    return 1;
-                
-                if (mduId.Contains("/PA-MD/"))
-                {
-                    var parts = mduId.Split('/');
-                    if (parts.Length > 0 && int.TryParse(parts[0], out int sequence))
-                    {
-                        return sequence;
-                    }
+                        MhsId = reader["mhs_id"]?.ToString() ?? "",
+                        MhsNama = reader["mhs_nama"]?.ToString() ?? "",
+                        Konsentrasi = reader["kon_nama"]?.ToString() ?? "",
+                        TahunAjaran = reader["srt_tahun_ajaran"]?.ToString() ?? "",
+                        SuratNo = reader["srt_no"]?.ToString() ?? "",
+                        Kaprodi = reader["pro_kaprodi"]?.ToString() ?? "",
+                        Wadir = reader["wadir"]?.ToString() ?? "",
+                        Direktur = reader["dir"]?.ToString() ?? ""
+                    };
                 }
                 
-                var hash = Math.Abs(mduId.GetHashCode()) % 999;
-                return hash == 0 ? 1 : hash;
+                return null;
             }
-            catch
+            catch (Exception)
             {
-                return 1;
+                return null;
             }
-        }
-
-        private string ConvertToRoman(int month)
-        {
-            return month switch
-            {
-                1 => "I",
-                2 => "II", 
-                3 => "III",
-                4 => "IV",
-                5 => "V",
-                6 => "VI",
-                7 => "VII",
-                8 => "VIII",
-                9 => "IX",
-                10 => "X",
-                11 => "XI",
-                12 => "XII",
-                _ => "I"
-            };
-        }
-
-        public async Task<IEnumerable<RiwayatMeninggalDuniaListDto>> GetRiwayatAsync(
-            string keyword,
-            string sort,
-            string konsentrasi,
-            string roleId
-        )
-        {
-            var list = new List<RiwayatMeninggalDuniaListDto>();
-
-            await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("sia_getDataRiwayatMeninggalDunia", conn)
-            {
-                CommandType = CommandType.StoredProcedure
-            };
-
-            cmd.Parameters.AddWithValue("@Keyword", keyword ?? "");
-            cmd.Parameters.AddWithValue("@Sort", sort ?? "mdu_created_date desc");
-            cmd.Parameters.AddWithValue("@Konsentrasi", konsentrasi ?? "");
-            cmd.Parameters.AddWithValue("@RoleId", roleId ?? "");
-
-            await conn.OpenAsync();
-            using var reader = await cmd.ExecuteReaderAsync();
-
-            while (await reader.ReadAsync())
-            {
-                list.Add(new RiwayatMeninggalDuniaListDto
-                {
-                    Id = reader["mdu_id"]?.ToString() ?? "",
-                    NoPengajuan = reader["mdu_id"]?.ToString() ?? "",
-                    TanggalPengajuan = reader["tanggal_buat"]?.ToString() ?? "",
-                    NamaMahasiswa = reader["mhs_nama"]?.ToString() ?? "",
-                    Nim = reader["mhs_id"]?.ToString() ?? "",
-                    Prodi = reader["pro_nama"]?.ToString() ?? "",
-                    NomorSK = reader["srt_no"]?.ToString() ?? "",
-                    Status = reader["mdu_status"]?.ToString() ?? ""
-                });
-            }
-
-            return list;
-        }
-
-        public async Task<(IEnumerable<RiwayatMeninggalDuniaListDto> Data, int TotalData)>
-        GetRiwayatAsync(GetRiwayatMeninggalDuniaRequest req)
-        {
-            var list = new List<RiwayatMeninggalDuniaListDto>();
-
-            await using var conn = new SqlConnection(_conn);
-            
-            var sql = @"
-                SELECT 
-                    a.mdu_id,
-                    a.mhs_id,
-                    CONVERT(VARCHAR(11),a.mdu_created_date,106) AS tanggal_buat,
-                    a.srt_no,
-                    b.mhs_nama,
-                    a.mdu_status,
-                    ISNULL(d.pro_nama, '') as pro_nama
-                FROM sia_msmeninggaldunia a
-                LEFT JOIN sia_msmahasiswa b ON a.mhs_id = b.mhs_id
-                LEFT JOIN sia_mskonsentrasi c ON b.kon_id = c.kon_id
-                LEFT JOIN sia_msprodi d ON d.pro_id = c.pro_id
-                WHERE a.mdu_status NOT IN ('Draft', 'Dihapus')";
-
-            if (!string.IsNullOrEmpty(req.Keyword))
-            {
-                sql += @" AND (
-                    UPPER(a.mhs_id) LIKE '%' + UPPER(@Keyword) + '%' OR
-                    UPPER(b.mhs_nama) LIKE '%' + UPPER(@Keyword) + '%' OR
-                    UPPER(a.srt_no) LIKE '%' + UPPER(@Keyword) + '%'
-                )";
-            }
-
-            if (!string.IsNullOrEmpty(req.Konsentrasi))
-            {
-                sql += " AND b.kon_id = @Konsentrasi";
-            }
-
-            if (!string.IsNullOrEmpty(req.RoleId))
-            {
-                sql += " AND c.kon_npk = @RoleId";
-            }
-
-            var sort = req.Sort ?? "mdu_created_date desc";
-            sql += sort switch
-            {
-                "mhs_id asc" => " ORDER BY a.mhs_id ASC",
-                "mhs_id desc" => " ORDER BY a.mhs_id DESC",
-                "mdu_created_date asc" => " ORDER BY a.mdu_created_date ASC",
-                "mdu_created_date desc" => " ORDER BY a.mdu_created_date DESC",
-                _ => " ORDER BY a.mdu_created_date DESC"
-            };
-
-            await using var cmd = new SqlCommand(sql, conn);
-            
-            if (!string.IsNullOrEmpty(req.Keyword))
-                cmd.Parameters.AddWithValue("@Keyword", req.Keyword);
-            
-            if (!string.IsNullOrEmpty(req.Konsentrasi))
-                cmd.Parameters.AddWithValue("@Konsentrasi", req.Konsentrasi);
-            
-            if (!string.IsNullOrEmpty(req.RoleId))
-                cmd.Parameters.AddWithValue("@RoleId", req.RoleId);
-
-            await conn.OpenAsync();
-            await using var reader = await cmd.ExecuteReaderAsync();
-
-            while (await reader.ReadAsync())
-            {
-                list.Add(new RiwayatMeninggalDuniaListDto
-                {
-                    Id = reader["mdu_id"]?.ToString() ?? "",
-                    NoPengajuan = reader["mdu_id"]?.ToString() ?? "",
-                    TanggalPengajuan = reader["tanggal_buat"]?.ToString() ?? "",
-                    NamaMahasiswa = reader["mhs_nama"]?.ToString() ?? "",
-                    Nim = reader["mhs_id"]?.ToString() ?? "",
-                    Prodi = reader["pro_nama"]?.ToString() ?? "",
-                    NomorSK = reader["srt_no"]?.ToString() ?? "",
-                    Status = reader["mdu_status"]?.ToString() ?? ""
-                });
-            }
-
-            int total = list.Count;
-
-            list = list
-                .Skip((req.PageNumber - 1) * req.PageSize)
-                .Take(req.PageSize)
-                .ToList();
-
-            return (list, total);
-        }
-
-
-        public async Task<IEnumerable<RiwayatMeninggalDuniaExcelResponse>> GetRiwayatExcelAsync(
-        string sort,
-        string konsentrasi
-        )
-        {
-            var list = new List<RiwayatMeninggalDuniaExcelResponse>();
-
-            await using var conn = new SqlConnection(_conn);
-            
-            await using var cmd = new SqlCommand("sia_getDataRiwayatMeninggalDuniaExcel", conn)
-            {
-                CommandType = CommandType.StoredProcedure
-            };
-
-            cmd.Parameters.AddWithValue("@Sort", sort ?? "");
-            cmd.Parameters.AddWithValue("@Konsentrasi", konsentrasi ?? "");
-
-            await conn.OpenAsync();
-            await using var reader = await cmd.ExecuteReaderAsync();
-
-            while (await reader.ReadAsync())
-            {
-                list.Add(new RiwayatMeninggalDuniaExcelResponse
-                {
-                    NIM = reader["NIM"]?.ToString() ?? "",
-                    NamaMahasiswa = reader["Nama Mahasiswa"]?.ToString() ?? "",
-                    Konsentrasi = reader["Konsentrasi"]?.ToString() ?? "",
-                    TanggalPengajuan = reader["Tanggal Pengajuan"]?.ToString() ?? "",
-                    NoSK = reader["No SK"]?.ToString() ?? "",
-                    NoPengajuan = reader["No Pengajuan"]?.ToString() ?? ""
-                });
-            }
-
-            return list;
         }
 
         public async Task<MeninggalDuniaDetailResponse?> GetDetailAsync(string id)
@@ -1080,6 +321,7 @@ namespace astratech_apps_backend.Repositories.Implementations
             try
             {
                 await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
                 
                 await using var cmd = new SqlCommand("sia_getDetailMeninggalDunia", conn)
                 {
@@ -1088,87 +330,243 @@ namespace astratech_apps_backend.Repositories.Implementations
 
                 cmd.Parameters.AddWithValue("@MeninggalDuniaId", id);
 
-                await conn.OpenAsync();
+                await using var reader = await cmd.ExecuteReaderAsync();
 
-                using var reader = await cmd.ExecuteReaderAsync();
-
-                if (!await reader.ReadAsync()) return null;
-
-                return new MeninggalDuniaDetailResponse
+                if (await reader.ReadAsync())
                 {
-                    MhsId = reader["mhs_id"]?.ToString() ?? "",
-                    MhsNama = reader["mhs_nama"]?.ToString() ?? "",
-                    KonNama = reader["kon_nama"]?.ToString() ?? "",
-                    MhsAngkatan = reader["mhs_angkatan"]?.ToString() ?? "",
-                    KonSingkatan = reader["kon_singkatan"]?.ToString() ?? "",
-                    Lampiran = reader["mdu_lampiran"]?.ToString() ?? "",
-                    Status = reader["mdu_status"]?.ToString() ?? "",
-                    CreatedBy = reader["mdu_created_by"]?.ToString() ?? "",
-                    ApproveDir1Date = reader["mdu_approve_dir1_date"]?.ToString() ?? "",
-                    ApproveDir1By = reader["mdu_approve_dir1_by"]?.ToString() ?? "",
-                    SuratNo = reader["srt_no"]?.ToString() ?? "-",
-                    NoSpkb = reader["mdu_no_spkb"]?.ToString() ?? "",
-                    SK = reader["mdu_sk"]?.ToString() ?? "",
-                    SPKB = reader["mdu_spkb"]?.ToString() ?? ""
-                };
+                    return new MeninggalDuniaDetailResponse
+                    {
+                        MhsId = reader["mhs_id"]?.ToString() ?? "",
+                        MhsNama = reader["mhs_nama"]?.ToString() ?? "",
+                        KonNama = reader["kon_nama"]?.ToString() ?? "",
+                        MhsAngkatan = reader["mhs_angkatan"]?.ToString() ?? "",
+                        KonSingkatan = reader["kon_singkatan"]?.ToString() ?? "",
+                        Lampiran = reader["mdu_lampiran"]?.ToString() ?? "",
+                        Status = reader["mdu_status"]?.ToString() ?? "",
+                        CreatedBy = reader["mdu_created_by"]?.ToString() ?? "",
+                        ApproveDir1Date = reader["mdu_approve_dir1_date"]?.ToString() ?? "",
+                        ApproveDir1By = reader["mdu_approve_dir1_by"]?.ToString() ?? "",
+                        SuratNo = reader["srt_no"]?.ToString() ?? "-",
+                        NoSpkb = reader["mdu_no_spkb"]?.ToString() ?? "",
+                        SK = reader["mdu_sk"]?.ToString() ?? "",
+                        SPKB = reader["mdu_spkb"]?.ToString() ?? ""
+                    };
+                }
+                
+                return null;
             }
-            catch
+            catch (Exception)
             {
                 return null;
             }
+        }
+
+        public async Task<MeninggalDunia?> GetByIdAsync(string id)
+        {
+            try
+            {
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
+                
+                await using var cmd = new SqlCommand("sia_getDetailMeninggalDunia", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                cmd.Parameters.AddWithValue("@MeninggalDuniaId", id);
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                if (await reader.ReadAsync())
+                {
+                    return new MeninggalDunia
+                    {
+                        Id = id,
+                        MhsId = reader["mhs_id"]?.ToString() ?? "",
+                        Lampiran = reader["mdu_lampiran"]?.ToString() ?? "",
+                        ApproveDir1By = reader["mdu_approve_dir1_by"]?.ToString() ?? "",
+                        SrtNo = reader["srt_no"]?.ToString() ?? "",
+                        NoSpkb = reader["mdu_no_spkb"]?.ToString() ?? "",
+                        Sk = reader["mdu_sk"]?.ToString() ?? "",
+                        Spkb = reader["mdu_spkb"]?.ToString() ?? "",
+                        Status = reader["mdu_status"]?.ToString() ?? "",
+                        CreatedBy = reader["mdu_created_by"]?.ToString() ?? ""
+                    };
+                }
+                
+                return null;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        public async Task<bool> UpdateAsync(string id, UpdateMeninggalDuniaRequest dto, string updatedBy)
+        {
+            try
+            {
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
+
+                await using var cmd = new SqlCommand("sia_editMeninggalDunia", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                cmd.Parameters.AddWithValue("@MeninggalDuniaId", id);
+                cmd.Parameters.AddWithValue("@Lampiran", dto.Lampiran ?? "");
+                cmd.Parameters.AddWithValue("@ModifiedBy", updatedBy);
+
+                await cmd.ExecuteNonQueryAsync();
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        public async Task<bool> SoftDeleteAsync(string id, string updatedBy)
+        {
+            try
+            {
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
+
+                await using var cmd = new SqlCommand("sia_deleteMeninggalDunia", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                cmd.Parameters.AddWithValue("@MeninggalDuniaId", id);
+                cmd.Parameters.AddWithValue("@ModifiedBy", updatedBy);
+
+                await cmd.ExecuteNonQueryAsync();
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        public async Task<bool> UploadSKAsync(string id, string sk, string spkb, string updatedBy)
+        {
+            return await UpdateSKAsync(id, sk, spkb, updatedBy);
+        }
+
+        public async Task<(IEnumerable<RiwayatMeninggalDuniaListDto> Data, int TotalData)> GetRiwayatAsync(GetRiwayatMeninggalDuniaRequest req)
+        {
+            var result = new List<RiwayatMeninggalDuniaListDto>();
+            
+            try
+            {
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
+                
+                await using var cmd = new SqlCommand("sia_getDataRiwayatMeninggalDunia", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                cmd.Parameters.AddWithValue("@Keyword", req.Keyword ?? "");
+                cmd.Parameters.AddWithValue("@Sort", req.Sort ?? "mdu_created_date desc");
+                cmd.Parameters.AddWithValue("@Konsentrasi", req.Konsentrasi ?? "");
+                cmd.Parameters.AddWithValue("@RoleId", req.RoleId ?? "");
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    result.Add(new RiwayatMeninggalDuniaListDto
+                    {
+                        Id = reader["mdu_id"]?.ToString() ?? "",
+                        NoPengajuan = reader["mdu_id"]?.ToString() ?? "",
+                        TanggalPengajuan = reader["tanggal_buat"]?.ToString() ?? "",
+                        NamaMahasiswa = reader["mhs_nama"]?.ToString() ?? "",
+                        Nim = reader["mhs_id"]?.ToString() ?? "",
+                        Prodi = reader["pro_nama"]?.ToString() ?? "",
+                        NomorSK = reader["srt_no"]?.ToString() ?? "",
+                        Status = reader["mdu_status"]?.ToString() ?? ""
+                    });
+                }
+
+                var total = result.Count;
+
+                // Apply pagination
+                result = result.Skip((req.PageNumber - 1) * req.PageSize)
+                              .Take(req.PageSize)
+                              .ToList();
+
+                return (result, total);
+            }
+            catch (Exception)
+            {
+                return (new List<RiwayatMeninggalDuniaListDto>(), 0);
+            }
+        }
+
+        public async Task<IEnumerable<RiwayatMeninggalDuniaExcelResponse>> GetRiwayatExcelAsync(string sort, string konsentrasi)
+        {
+            var result = new List<RiwayatMeninggalDuniaExcelResponse>();
+            
+            try
+            {
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
+                
+                await using var cmd = new SqlCommand("sia_getDataRiwayatMeninggalDuniaExcel", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                cmd.Parameters.AddWithValue("@Sort", sort ?? "");
+                cmd.Parameters.AddWithValue("@Konsentrasi", konsentrasi ?? "");
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    result.Add(new RiwayatMeninggalDuniaExcelResponse
+                    {
+                        NIM = reader["NIM"]?.ToString() ?? "",
+                        NamaMahasiswa = reader["Nama Mahasiswa"]?.ToString() ?? "",
+                        Konsentrasi = reader["Konsentrasi"]?.ToString() ?? "",
+                        TanggalPengajuan = reader["Tanggal Pengajuan"]?.ToString() ?? "",
+                        NoSK = reader["No SK"]?.ToString() ?? "",
+                        NoPengajuan = reader["No Pengajuan"]?.ToString() ?? ""
+                    });
+                }
+            }
+            catch (Exception)
+            {
+                // Return empty result on error
+            }
+            
+            return result;
         }
 
         public async Task<bool> ApproveAsync(string id, ApproveMeninggalDuniaRequest dto)
         {
             try
             {
-                
                 await using var conn = new SqlConnection(_conn);
-                
-                var getStatusSql = "SELECT mdu_status FROM sia_msmeninggaldunia WHERE mdu_id = @id";
-                await using var getStatusCmd = new SqlCommand(getStatusSql, conn);
-                getStatusCmd.Parameters.AddWithValue("@id", id);
-                
                 await conn.OpenAsync();
-                var currentStatus = (await getStatusCmd.ExecuteScalarAsync())?.ToString();
-                
-                if (string.IsNullOrEmpty(currentStatus))
-                {
-                    return false;
-                }
-                
+
                 await using var cmd = new SqlCommand("sia_setujuiMeninggalDunia", conn)
                 {
                     CommandType = CommandType.StoredProcedure
                 };
 
                 cmd.Parameters.AddWithValue("@MeninggalDuniaId", id);
-                cmd.Parameters.AddWithValue("@Role", dto.Role);
-                cmd.Parameters.AddWithValue("@Username", dto.Username);
-                
+                cmd.Parameters.AddWithValue("@Role", dto.Role ?? "");
+                cmd.Parameters.AddWithValue("@Username", dto.Username ?? "");
 
-                
-                var rows = await cmd.ExecuteNonQueryAsync();
-                
-                
-                var newStatus = (await getStatusCmd.ExecuteScalarAsync())?.ToString();
-                
-                bool statusChanged = !string.Equals(currentStatus, newStatus, StringComparison.OrdinalIgnoreCase);
-                
-                if (statusChanged)
-                {
-                    return true;
-                }
-                else if (rows > 0)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+                await cmd.ExecuteNonQueryAsync();
+                return true;
             }
-            catch
+            catch (Exception)
             {
                 return false;
             }
@@ -1178,21 +576,9 @@ namespace astratech_apps_backend.Repositories.Implementations
         {
             try
             {
-                
                 await using var conn = new SqlConnection(_conn);
-                
-                var getStatusSql = "SELECT mdu_status FROM sia_msmeninggaldunia WHERE mdu_id = @id";
-                await using var getStatusCmd = new SqlCommand(getStatusSql, conn);
-                getStatusCmd.Parameters.AddWithValue("@id", id);
-                
                 await conn.OpenAsync();
-                var currentStatus = (await getStatusCmd.ExecuteScalarAsync())?.ToString();
-                
-                if (string.IsNullOrEmpty(currentStatus))
-                {
-                    return false;
-                }
-                
+
                 await using var cmd = new SqlCommand("sia_tolakMeninggalDunia", conn)
                 {
                     CommandType = CommandType.StoredProcedure
@@ -1201,30 +587,11 @@ namespace astratech_apps_backend.Repositories.Implementations
                 cmd.Parameters.AddWithValue("@MeninggalDuniaId", id);
                 cmd.Parameters.AddWithValue("@Role", dto.Role ?? "");
                 cmd.Parameters.AddWithValue("@Username", dto.Username ?? "");
-                
 
-                
-                var result = await cmd.ExecuteNonQueryAsync();
-                
-                
-                var newStatus = (await getStatusCmd.ExecuteScalarAsync())?.ToString();
-                
-                bool statusChanged = !string.Equals(currentStatus, newStatus, StringComparison.OrdinalIgnoreCase);
-                
-                if (statusChanged)
-                {
-                    return true;
-                }
-                else if (result > 0)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+                await cmd.ExecuteNonQueryAsync();
+                return true;
             }
-            catch
+            catch (Exception)
             {
                 return false;
             }
@@ -1234,72 +601,37 @@ namespace astratech_apps_backend.Repositories.Implementations
         {
             try
             {
-                
                 await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
+                
                 await using var cmd = new SqlCommand("all_getIdentityByUser", conn)
                 {
                     CommandType = CommandType.StoredProcedure
                 };
 
                 cmd.Parameters.AddWithValue("@UsernameToFind", username);
-
-                await conn.OpenAsync();
-                
                 await using var reader = await cmd.ExecuteReaderAsync();
 
                 if (await reader.ReadAsync())
                 {
-                    for (int i = 0; i < reader.FieldCount; i++)
-                    {
-                        var columnName = reader.GetName(i);
-                        var columnValue = reader[i]?.ToString() ?? "NULL";
-                    }
-                    
-                    var strMainId = reader["str_main_id"]?.ToString() ?? "";
-                    var kryUsername = reader["kry_username"]?.ToString() ?? "";
-                    var jabMainId = reader["jab_main_id"]?.ToString() ?? "";
                     var rolId = reader["rol_id"]?.ToString() ?? "";
+                    var jabMainId = reader["jab_main_id"]?.ToString() ?? "";
                     
-                    
-                    var role = strMainId switch
+                    // Mapping rol_id ke role name
+                    return rolId switch
                     {
-                        "27" or "23" or "28" => "finance",
-                        _ => "wadir1"
+                        "ROL999" => "wadir1",
+                        "ROL71" => "prodi", 
+                        _ when username.Contains("finance", StringComparison.OrdinalIgnoreCase) => "finance",
+                        _ when jabMainId == "4" => "wadir1",  // fallback jika rol_id kosong
+                        _ when jabMainId == "6" => "prodi",   // fallback jika rol_id kosong
+                        _ => ""
                     };
-                    
-                    return role;
-                }
-                
-                
-                await using var directCmd = new SqlCommand(@"
-                    SELECT a.kry_username, a.jab_main_id, a.str_main_id, b.rol_id, a.kry_id
-                    FROM ess_mskaryawan a 
-                    RIGHT JOIN sso_msuser b ON a.kry_username = b.usr_id 
-                    WHERE b.usr_id = @username", conn);
-                directCmd.Parameters.AddWithValue("@username", username);
-                
-                await using var directReader = await directCmd.ExecuteReaderAsync();
-                if (await directReader.ReadAsync())
-                {
-                    for (int i = 0; i < directReader.FieldCount; i++)
-                    {
-                        var columnName = directReader.GetName(i);
-                        var columnValue = directReader[i]?.ToString() ?? "NULL";
-                    }
-                    
-                    var strMainId = directReader["str_main_id"]?.ToString() ?? "";
-                    var role = strMainId switch
-                    {
-                        "27" or "23" or "28" => "finance",
-                        _ => "wadir1"
-                    };
-                    
-                    return role;
                 }
                 
                 return "";
             }
-            catch
+            catch (Exception)
             {
                 return "";
             }
@@ -1307,66 +639,80 @@ namespace astratech_apps_backend.Repositories.Implementations
 
         public async Task<IEnumerable<MahasiswaDropdownSPDto>> GetMahasiswaDropdownSPAsync()
         {
-            await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("lpm_getListMahasiswa", conn)
+            var result = new List<MahasiswaDropdownSPDto>();
+            
+            try
             {
-                CommandType = CommandType.StoredProcedure
-            };
-
-            for (int i = 1; i <= 50; i++)
-            {
-                cmd.Parameters.AddWithValue($"@p{i}", "");
-            }
-
-            await conn.OpenAsync();
-            await using var reader = await cmd.ExecuteReaderAsync();
-
-            var list = new List<MahasiswaDropdownSPDto>();
-            while (await reader.ReadAsync())
-            {
-                list.Add(new MahasiswaDropdownSPDto
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
+                
+                await using var cmd = new SqlCommand("lpm_getListMahasiswa", conn)
                 {
-                    Value = reader["Value"].ToString() ?? "",
-                    Text = reader["Text"].ToString() ?? "",
-                    NimNama = reader["NimNama"].ToString() ?? ""
-                });
-            }
+                    CommandType = CommandType.StoredProcedure
+                };
 
-            return list;
+                for (int i = 1; i <= 50; i++)
+                {
+                    cmd.Parameters.AddWithValue($"@p{i}", "");
+                }
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    result.Add(new MahasiswaDropdownSPDto
+                    {
+                        Value = reader["Value"]?.ToString() ?? "",
+                        Text = reader["Text"]?.ToString() ?? "",
+                        NimNama = reader["NimNama"]?.ToString() ?? ""
+                    });
+                }
+            }
+            catch (Exception)
+            {
+                // Return empty list on error
+            }
+            
+            return result;
         }
 
         public async Task<MahasiswaProdiDto?> GetMahasiswaProdiSPAsync(string mhsId)
         {
-            await using var conn = new SqlConnection(_conn);
-            await using var cmd = new SqlCommand("lpm_getListMahasiswaByProdi", conn)
+            try
             {
-                CommandType = CommandType.StoredProcedure
-            };
-
-            cmd.Parameters.AddWithValue("@p1", mhsId);
-
-            for (int i = 2; i <= 50; i++)
-            {
-                cmd.Parameters.AddWithValue($"@p{i}", "");
-            }
-
-            await conn.OpenAsync();
-            await using var reader = await cmd.ExecuteReaderAsync();
-
-            if (await reader.ReadAsync())
-            {
-                return new MahasiswaProdiDto
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
+                
+                await using var cmd = new SqlCommand("lpm_getListMahasiswaByProdi", conn)
                 {
-                    KonId = reader["kon_id"].ToString() ?? "",
-                    ProId = reader["pro_id"].ToString() ?? "",
-                    ProNama = reader["pro_nama"].ToString() ?? ""
+                    CommandType = CommandType.StoredProcedure
                 };
+
+                cmd.Parameters.AddWithValue("@p1", mhsId);
+
+                for (int i = 2; i <= 50; i++)
+                {
+                    cmd.Parameters.AddWithValue($"@p{i}", "");
+                }
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                if (await reader.ReadAsync())
+                {
+                    return new MahasiswaProdiDto
+                    {
+                        KonId = reader["kon_id"]?.ToString() ?? "",
+                        ProId = reader["pro_id"]?.ToString() ?? "",
+                        ProNama = reader["pro_nama"]?.ToString() ?? ""
+                    };
+                }
+                
+                return null;
             }
-
-            return null;
+            catch (Exception)
+            {
+                return null;
+            }
         }
-
-
-
     }
 }
