@@ -313,6 +313,12 @@ namespace astratech_apps_backend.Repositories.Implementations
 
             while (await reader.ReadAsync())
             {
+                var statusValue = reader["status"]?.ToString() ?? "";
+                
+                // Filter out Draft status from riwayat
+                if (statusValue.Equals("Draft", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
                 result.Add(new CutiAkademikListResponse
                 {
                     Id = reader["cak_id"]?.ToString() ?? "",
@@ -326,7 +332,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                     ApproveDir1 = reader["approve_dir1"]?.ToString() ?? "",
                     Tanggal = reader["tanggal"]?.ToString() ?? "",
                     SuratNo = reader["srt_no"]?.ToString() ?? "",
-                    Status = reader["status"]?.ToString() ?? ""
+                    Status = statusValue
                 });
             }
 
