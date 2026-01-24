@@ -1,9 +1,6 @@
 using astratech_apps_backend.DTOs.MeninggalDunia;
 using astratech_apps_backend.Repositories.Interfaces;
-using astratech_apps_backend.Helpers;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-
 
 namespace astratech_apps_backend.Controllers
 {
@@ -28,10 +25,10 @@ namespace astratech_apps_backend.Controllers
                 {
                     req.PageSize = 50; 
                 }
-                
+
                 ModelState.Clear();
                 var result = await _repository.GetAllAsync(req);
-                
+
                 return Ok(new MeninggalDuniaResponse
                 {
                     Data = result.Data.Select(x => new MeninggalDuniaListDto
@@ -78,7 +75,7 @@ namespace astratech_apps_backend.Controllers
             var data = await _repository.GetMahasiswaDetailAsync(mhsId);
             if (data == null)
                 return NotFound(new { message = "Data mahasiswa tidak ditemukan" });
-            
+
             return Ok(data);
         }
 
@@ -89,7 +86,7 @@ namespace astratech_apps_backend.Controllers
             var data = await _repository.GetMahasiswaProdiSPAsync(mhsId);
             if (data == null)
                 return NotFound(new { message = "Data prodi mahasiswa tidak ditemukan" });
-            
+
             return Ok(data);
         }
 
@@ -108,11 +105,9 @@ namespace astratech_apps_backend.Controllers
             try
             {
                 id = Uri.UnescapeDataString(id);
-                
                 var data = await _repository.GetDetailAsync(id);
-
                 if (data == null)
-                    return NotFound(new { message = $"Data dengan ID '{id}' tidak ditemukan" });
+                    return NotFound(new { message = "Data tidak ditemukan" });
 
                 return Ok(data);
             }
@@ -126,47 +121,32 @@ namespace astratech_apps_backend.Controllers
         //[RequiresPermission("meninggal_dunia.print")]
         public IActionResult DownloadFileMeninggalDunia(string filename)
         {
-            const string uploadsFolder = "uploads";
-            const string meninggalFolder = "meninggal";
-            const string lampiranFolder = "lampiran";
-            const string wwwrootFolder = "wwwroot";
-            
             var possiblePaths = new[]
             {
-                Path.Combine(Directory.GetCurrentDirectory(), wwwrootFolder, uploadsFolder, meninggalFolder, filename),
-                Path.Combine(Directory.GetCurrentDirectory(), uploadsFolder, meninggalFolder, filename),
-                Path.Combine(Directory.GetCurrentDirectory(), uploadsFolder, meninggalFolder, lampiranFolder, filename),
-                Path.Combine(Directory.GetCurrentDirectory(), wwwrootFolder, uploadsFolder, meninggalFolder, lampiranFolder, filename)
+                Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads/meninggal", filename),
+                Path.Combine(Directory.GetCurrentDirectory(), "uploads/meninggal", filename),
+                Path.Combine(Directory.GetCurrentDirectory(), "uploads/meninggal/lampiran", filename),
+                Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads/meninggal/lampiran", filename)
             };
 
             var foundPath = possiblePaths.FirstOrDefault(System.IO.File.Exists);
-
             if (foundPath == null)
-                return NotFound(new { 
-                    message = "File tidak ditemukan.", 
-                });
+                return NotFound(new { message = "File tidak ditemukan." });
 
             var fileBytes = System.IO.File.ReadAllBytes(foundPath);
             var contentType = GetContentType(filename);
-            
             return File(fileBytes, contentType, filename);
         }
 
         private static string GetContentType(string filename)
         {
-            const string pdfExt = ".pdf";
-            const string jpgExt = ".jpg";
-            const string jpegExt = ".jpeg";
-            const string pngExt = ".png";
-            const string txtExt = ".txt";
-            
             var extension = Path.GetExtension(filename).ToLowerInvariant();
             return extension switch
             {
-                pdfExt => "application/pdf",
-                jpgExt or jpegExt => "image/jpeg",
-                pngExt => "image/png",
-                txtExt => "text/plain",
+                ".pdf" => "application/pdf",
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".png" => "image/png",
+                ".txt" => "text/plain",
                 _ => "application/octet-stream"
             };
         }
@@ -180,8 +160,6 @@ namespace astratech_apps_backend.Controllers
 
             var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
             const int maxFileSize = 10 * 1024 * 1024; 
-            const string userIdKey = "UserId";
-            const string systemUser = "system";
 
             if (dto.LampiranFile != null)
             {
@@ -189,7 +167,7 @@ namespace astratech_apps_backend.Controllers
                 
                 if (!allowedExtensions.Contains(fileExtension))
                 {
-                    return BadRequest(new { message = $"Tipe file lampiran tidak diizinkan. Gunakan: {string.Join(", ", allowedExtensions)}" });
+                    return BadRequest(new { message = "Tipe file lampiran tidak diizinkan." });
                 }
 
                 if (dto.LampiranFile.Length > maxFileSize)
@@ -198,7 +176,7 @@ namespace astratech_apps_backend.Controllers
                 }
             }
 
-            var createdBy = HttpContext.Items[userIdKey]?.ToString() ?? systemUser;
+            var createdBy = HttpContext.Items["UserId"]?.ToString() ?? "system";
             var id = await _repository.CreateAsync(dto, createdBy);
             return Ok(new { id });
         }
@@ -207,24 +185,15 @@ namespace astratech_apps_backend.Controllers
         //[RequiresPermission("meninggal_dunia.create")]
         public async Task<IActionResult> FinalizeDraftMeninggalDunia(string draftId)
         {
-            const string userIdKey = "UserId";
-            const string systemUser = "system";
-            
-            var updatedBy = HttpContext.Items[userIdKey]?.ToString() ?? systemUser;
+            var updatedBy = HttpContext.Items["UserId"]?.ToString() ?? "system";
             var officialId = await _repository.FinalizeAsync(draftId, updatedBy);
-            
+
             if (string.IsNullOrEmpty(officialId))
             {
-                return BadRequest(new { 
-                    message = "Gagal mengajukan Meninggal Dunia.",
-                    draftId = draftId
-                });
+                return BadRequest(new { message = "Gagal mengajukan Meninggal Dunia." });
             }
 
-            return Ok(new { 
-                message = "Pengajuan Meninggal Dunia Berhasil Dikirim.",
-                officialId = officialId
-            });
+            return Ok(new { message = "Pengajuan Meninggal Dunia Berhasil Dikirim." });
         }
 
         [HttpPut("UpdateMeninggalDunia/{id}")]
@@ -240,19 +209,13 @@ namespace astratech_apps_backend.Controllers
 
                 var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
                 const int maxFileSize = 10 * 1024 * 1024; 
-                const string userIdKey = "UserId";
-                const string systemUser = "system";
 
-                var updatedBy = HttpContext.Items[userIdKey]?.ToString() ?? systemUser;
+                var updatedBy = HttpContext.Items["UserId"]?.ToString() ?? "system";
 
-                // Karena LampiranFile sekarang required, selalu ada file
                 var fileExtension = Path.GetExtension(dto.LampiranFile.FileName).ToLowerInvariant();
-                
                 if (!allowedExtensions.Contains(fileExtension))
                 {
-                    return BadRequest(new { 
-                        message = $"Tipe file tidak diizinkan. Gunakan: {string.Join(", ", allowedExtensions)}" 
-                    });
+                    return BadRequest(new { message = "Tipe file tidak diizinkan." });
                 }
 
                 if (dto.LampiranFile.Length > maxFileSize)
@@ -261,26 +224,16 @@ namespace astratech_apps_backend.Controllers
                 }
 
                 var success = await _repository.UpdateAsync(id, dto, updatedBy);
-
                 if (!success)
                 {
-                    return BadRequest(new { 
-                        message = "Gagal Perbarui Data Pengajuan Meninggal Dunia.",
-                    });
+                    return BadRequest(new { message = "Gagal Perbarui Data Pengajuan Meninggal Dunia." });
                 }
 
-                return Ok(new { 
-                    message = "Data Pengajuan Meninggal Dunia Berhasil Di Perbarui.",
-                    hasFile = true, // Selalu true karena file required
-                    mhsId = dto.MhsId
-                });
+                return Ok(new { message = "Data Pengajuan Meninggal Dunia Berhasil Di Perbarui." });
             }
             catch (Exception)
             {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat memperbarui data.",
-                    id = id
-                });
+                return BadRequest(new { message = "Terjadi kesalahan saat memperbarui data." });
             }
         }
 
@@ -292,8 +245,6 @@ namespace astratech_apps_backend.Controllers
             {
                 var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
                 const int maxFileSize = 10 * 1024 * 1024; 
-                const string userIdKey = "UserId";
-                const string systemUser = "system";
 
                 if (string.IsNullOrEmpty(request.MduId))
                 {
@@ -312,20 +263,20 @@ namespace astratech_apps_backend.Controllers
 
                 if (string.IsNullOrEmpty(request.ModifiedBy))
                 {
-                    request.ModifiedBy = HttpContext.Items[userIdKey]?.ToString() ?? systemUser;
+                    request.ModifiedBy = HttpContext.Items["UserId"]?.ToString() ?? "system";
                 }
 
                 var skFileExtension = Path.GetExtension(request.SK.FileName).ToLowerInvariant();
                 var spkbFileExtension = Path.GetExtension(request.SKPB.FileName).ToLowerInvariant();
-                
+
                 if (!allowedExtensions.Contains(skFileExtension))
                 {
-                    return BadRequest(new { message = $"Tipe file SK tidak diizinkan. Gunakan: {string.Join(", ", allowedExtensions)}" });
+                    return BadRequest(new { message = "Tipe file SK tidak diizinkan." });
                 }
 
                 if (!allowedExtensions.Contains(spkbFileExtension))
                 {
-                    return BadRequest(new { message = $"Tipe file SPKB tidak diizinkan. Gunakan: {string.Join(", ", allowedExtensions)}" });
+                    return BadRequest(new { message = "Tipe file SPKB tidak diizinkan." });
                 }
 
                 if (request.SK.Length > maxFileSize)
@@ -368,26 +319,16 @@ namespace astratech_apps_backend.Controllers
                 }
 
                 var result = await _repository.UploadSKAsync(request.MduId, skFilePath, spkbFilePath, request.ModifiedBy);
-
                 if (!result)
                 {
                     return BadRequest(new { message = "Gagal upload SK Meninggal Dunia." });
                 }
 
-                return Ok(new { 
-                    message = "Upload SK berhasil.",
-                    success = true,
-                    mduId = request.MduId,
-                    skFileName = request.SK?.FileName ?? "",
-                    spkbFileName = request.SKPB?.FileName ?? "",
-                    modifiedBy = request.ModifiedBy
-                });
+                return Ok(new { message = "Upload SK berhasil." });
             }
             catch (Exception)
             {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat mengupload SK."
-                });
+                return BadRequest(new { message = "Terjadi kesalahan saat mengupload SK." });
             }
         }
 
@@ -395,17 +336,13 @@ namespace astratech_apps_backend.Controllers
         //[RequiresPermission("meninggal_dunia.delete")]
         public async Task<IActionResult> DeleteMeninggalDunia(string id)
         {
-            const string userIdKey = "UserId";
-            const string systemUser = "system";
-            
-            var updatedBy = HttpContext.Items[userIdKey]?.ToString() ?? systemUser;
-
+            var updatedBy = HttpContext.Items["UserId"]?.ToString() ?? "system";
             var result = await _repository.SoftDeleteAsync(id, updatedBy);
 
             if (!result)
                 return BadRequest(new { message = "Gagal Menghapus Data Pengajuan Meninggal Dunia." });
 
-            return Ok(new { message = "Data Pengajuan Meninggal Dunia." });
+            return Ok(new { message = "Data Pengajuan Meninggal Dunia berhasil dihapus." });
         }
 
         [HttpPut("ApproveMeninggalDunia/{id}")]
@@ -415,40 +352,24 @@ namespace astratech_apps_backend.Controllers
             try
             {
                 id = Uri.UnescapeDataString(id);
-                
                 var detectedRole = await _repository.DetectUserRoleAsync(dto.Username);
                 if (string.IsNullOrEmpty(detectedRole))
                 {
-                    return BadRequest(new { 
-                        message = "ROL Tidak Valid.",
-                        username = dto.Username
-                    });
+                    return BadRequest(new { message = "ROL Tidak Valid." });
                 }
-                
-                dto.Role = detectedRole;
-                
-                var result = await _repository.ApproveAsync(id, dto);
 
+                dto.Role = detectedRole;
+                var result = await _repository.ApproveAsync(id, dto);
                 if (!result)
                 {
-                    return BadRequest(new { 
-                        message = "Gagal Menyetujui Data Pengajuan Meninggal Dunia.",
-                        username = dto.Username
-                    });
+                    return BadRequest(new { message = "Gagal Menyetujui Data Pengajuan Meninggal Dunia." });
                 }
 
-                return Ok(new { 
-                    approved = true,
-                    approvedBy = dto.Username,
-                    role = detectedRole,
-                    message ="Data Pengajuan Meninggal Dunia berhasil disetujui"
-                });
+                return Ok(new { message = "Data Pengajuan Meninggal Dunia berhasil disetujui" });
             }
             catch (Exception)
             {
-                return BadRequest(new { 
-                    message = "Terjadi Kesalahan Saat Menyetujui Data Pengajuan Meninggal Dunia."
-                });
+                return BadRequest(new { message = "Terjadi Kesalahan Saat Menyetujui Data Pengajuan Meninggal Dunia." });
             }
         }
 
@@ -459,41 +380,24 @@ namespace astratech_apps_backend.Controllers
             try
             {
                 id = Uri.UnescapeDataString(id);
-                
                 var detectedRole = await _repository.DetectUserRoleAsync(dto.Username);
                 if (string.IsNullOrEmpty(detectedRole))
                 {
-                    return BadRequest(new { 
-                        message = "ROL Tidak Valid",
-                        username = dto.Username
-                    });
+                    return BadRequest(new { message = "ROL Tidak Valid" });
                 }
-                
-                dto.Role = detectedRole;
-                
-                var success = await _repository.RejectAsync(id, dto);
 
+                dto.Role = detectedRole;
+                var success = await _repository.RejectAsync(id, dto);
                 if (!success)
                 {
-                    return BadRequest(new { 
-                        message = "Gagal Menolak Data pengajuan Meninggal Dunia.",
-
-                    });
+                    return BadRequest(new { message = "Gagal Menolak Data pengajuan Meninggal Dunia." });
                 }
 
-                return Ok(new
-                {
-                    rejected = true,
-                    rejectedBy = dto.Username,
-                    role = detectedRole,
-                    message ="Data pengajuan Meninggal Dunia Berhasil Ditolak"
-                });
+                return Ok(new { message = "Data pengajuan Meninggal Dunia Berhasil Ditolak" });
             }
             catch (Exception)
             {
-                return BadRequest(new { 
-                    message = "Terjadi Kesalahan Saat Menolak Pengajuan.",
-                });
+                return BadRequest(new { message = "Terjadi Kesalahan Saat Menolak Pengajuan." });
             }
         }
 
@@ -512,14 +416,11 @@ namespace astratech_apps_backend.Controllers
 
         [HttpGet("ExportRiwayatMeninggalDuniaToExcel")]
         //[RequiresPermission("meninggal_dunia.export")]
-        public async Task<IActionResult> ExportRiwayatMeninggalDuniaToExcel(
-            [FromQuery] string sort = "",
-            [FromQuery] string konsentrasi = "")
+        public async Task<IActionResult> ExportRiwayatMeninggalDuniaToExcel([FromQuery] string sort = "", [FromQuery] string konsentrasi = "")
         {
             try
             {
                 var data = await _repository.GetRiwayatExcelAsync(sort, konsentrasi);
-                
                 using var workbook = new ClosedXML.Excel.XLWorkbook();
                 var worksheet = workbook.Worksheets.Add("Riwayat Meninggal Dunia");
 
@@ -536,20 +437,17 @@ namespace astratech_apps_backend.Controllers
                 headerRange.Style.Border.OutsideBorder = ClosedXML.Excel.XLBorderStyleValues.Thin;
                 headerRange.Style.Border.InsideBorder = ClosedXML.Excel.XLBorderStyleValues.Thin;
 
-                data.Select((item, index) => new { item, rowIndex = index + 2 })
-                    .ToList()
-                    .ForEach(x =>
-                    {
-                        worksheet.Cell(x.rowIndex, 1).Value = x.item.NIM;
-                        worksheet.Cell(x.rowIndex, 2).Value = x.item.NamaMahasiswa;
-                        worksheet.Cell(x.rowIndex, 3).Value = x.item.Konsentrasi;
-                        worksheet.Cell(x.rowIndex, 4).Value = x.item.TanggalPengajuan;
-                        worksheet.Cell(x.rowIndex, 5).Value = x.item.NoSK;
-                        worksheet.Cell(x.rowIndex, 6).Value = x.item.NoPengajuan;
-                    });
+                data.Select((item, index) => new { item, rowIndex = index + 2 }).ToList().ForEach(x =>
+                {
+                    worksheet.Cell(x.rowIndex, 1).Value = x.item.NIM;
+                    worksheet.Cell(x.rowIndex, 2).Value = x.item.NamaMahasiswa;
+                    worksheet.Cell(x.rowIndex, 3).Value = x.item.Konsentrasi;
+                    worksheet.Cell(x.rowIndex, 4).Value = x.item.TanggalPengajuan;
+                    worksheet.Cell(x.rowIndex, 5).Value = x.item.NoSK;
+                    worksheet.Cell(x.rowIndex, 6).Value = x.item.NoPengajuan;
+                });
 
                 var totalRows = data.Count() + 1;
-
                 worksheet.Columns().AdjustToContents();
 
                 if (totalRows > 2)
@@ -564,16 +462,11 @@ namespace astratech_apps_backend.Controllers
                 stream.Position = 0;
 
                 var fileName = $"RiwayatMeninggalDunia_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
-                
-                return File(stream.ToArray(),
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    fileName);
+                return File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
             }
             catch (Exception)
             {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat membuat file Excel."
-                });
+                return BadRequest(new { message = "Terjadi kesalahan saat membuat file Excel." });
             }
         }
     }
