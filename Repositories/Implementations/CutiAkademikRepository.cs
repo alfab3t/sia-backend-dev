@@ -453,20 +453,31 @@ namespace astratech_apps_backend.Repositories.Implementations
        
         public async Task<bool> RejectCutiAsync(RejectCutiAkademikRequest dto)
         {
-            await using var conn = new SqlConnection(_conn);
-            await conn.OpenAsync();
-
-            var cmd = new SqlCommand("sia_tolakCutiAkademik", conn)
+            try
             {
-                CommandType = CommandType.StoredProcedure
-            };
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
 
-            cmd.Parameters.AddWithValue("@CutiAkademikId", dto.Id);
-            cmd.Parameters.AddWithValue("@Role", dto.Role);
-            cmd.Parameters.AddWithValue("@Keterangan", "");
+                var cmd = new SqlCommand("sia_tolakCutiAkademik", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
 
-            var rowsAffected = await cmd.ExecuteNonQueryAsync();
-            return rowsAffected > 0;
+                cmd.Parameters.AddWithValue("@CutiAkademikId", dto.Id);
+                cmd.Parameters.AddWithValue("@Username", dto.Username);  // Hanya username
+                cmd.Parameters.AddWithValue("@Keterangan", "");
+                // Tidak perlu @Role lagi karena SP auto-detect
+
+                await cmd.ExecuteNonQueryAsync();
+                
+                // Return true jika tidak ada exception
+                // SP sudah handle business logic-nya
+                return true;
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"RejectCutiAsync error: {ex.Message}");
+            }
         }
 
         public async Task<bool> UploadSKAsync(UploadSKCutiAkademikRequest dto)
@@ -510,13 +521,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
                 
-                var role = await TryDetectRoleFromStoredProcedureAsync(conn, username);
-                if (!string.IsNullOrEmpty(role))
-                {
-                    return role;
-                }
-                
-                return await TryDetectRoleFromDirectQueryAsync(conn, username);
+                return await TryDetectRoleFromStoredProcedureAsync(conn, username);
             }
             catch (Exception)
             {
@@ -549,36 +554,19 @@ namespace astratech_apps_backend.Repositories.Implementations
             }
         }
 
-        private async Task<string> TryDetectRoleFromDirectQueryAsync(SqlConnection conn, string username)
-        {
-            try
-            {
-                await using var directCmd = new SqlCommand(@"
-                    SELECT a.kry_username, a.jab_main_id, a.str_main_id, b.rol_id, a.kry_id
-                    FROM ess_mskaryawan a 
-                    RIGHT JOIN sso_msuser b ON a.kry_username = b.usr_id 
-                    WHERE b.usr_id = @username", conn);
-                directCmd.Parameters.AddWithValue("@username", username);
-                
-                await using var directReader = await directCmd.ExecuteReaderAsync();
-                if (await directReader.ReadAsync())
-                {
-                    return ProcessUserRoleFromReader(directReader, username);
-                }
-                
-                return "";
-            }
-            catch
-            {
-                return "";
-            }
-        }
-
         private string ProcessUserRoleFromReader(SqlDataReader reader, string username)
         {
             var strMainId = reader["str_main_id"]?.ToString() ?? "";
             var jabMainId = reader["jab_main_id"]?.ToString() ?? "";
+            var rolId = reader["rol_id"]?.ToString() ?? "";
             
+            // Prioritas pertama: gunakan rol_id dari database jika ada
+            if (!string.IsNullOrEmpty(rolId))
+            {
+                return rolId;
+            }
+            
+            // Fallback: mapping jab_main_id ke role name
             var role = jabMainId switch
             {
                 "4" => "wadir1",                    

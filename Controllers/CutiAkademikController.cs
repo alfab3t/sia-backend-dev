@@ -18,7 +18,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpPost("CreateDraftCutiAkademik")]
-        [RequiresPermission("cuti_akademik.create")]
+        //[RequiresPermission("cuti_akademik.create")]
         public async Task<IActionResult> CreateDraftCutiAkademik([FromForm] CreateDraftCutiAkademikRequest dto)
         {
             var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
@@ -59,7 +59,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpPut("GenerateIdFinalCutiAkademik")]
-        [RequiresPermission("cuti_akademik.create")]
+        //[RequiresPermission("cuti_akademik.create")]
         public async Task<IActionResult> GenerateIdFinalCutiAkademik([FromBody] GenerateIdFinalCutiAkademikRequest dto)
         {
             var id = await _repository.GenerateIdAsync(dto);
@@ -71,7 +71,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpPost("CreateDraftCutiAkademikByProdi")]
-        [RequiresPermission("cuti_akademik.create")]
+        //[RequiresPermission("cuti_akademik.create")]
         public async Task<IActionResult> CreateDraftCutiAkademikByProdi([FromForm] CreateDraftCutiAkademikByProdiRequest dto)
         {
             try
@@ -133,7 +133,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpPut("GenerateIdFinalCutiAkademikByProdi")]
-        [RequiresPermission("cuti_akademik.create")]
+        //[RequiresPermission("cuti_akademik.create")]
         public async Task<IActionResult> GenerateIdFinalCutiAkademikByProdi([FromBody] GenerateIdFinalCutiAkademikByProdiRequest dto)
         {
             try
@@ -162,7 +162,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpGet("GetAllCutiAkademik")]
-        [RequiresPermission("cuti_akademik.view")]
+        //[RequiresPermission("cuti_akademik.view")]
         public async Task<IActionResult> GetAllCutiAkademik(
             [FromQuery] string mhsId = "%", 
             [FromQuery] string status = "",
@@ -175,7 +175,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpGet("GetDetailCutiAkademik")]
-        [RequiresPermission("cuti_akademik.view")]
+        //[RequiresPermission("cuti_akademik.view")]
         public async Task<IActionResult> GetDetailCutiAkademik([FromQuery] string id)
         {
             var data = await _repository.GetDetailAsync(id);
@@ -187,7 +187,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpPut("UpdateCutiAkademik/{id}")]
-        [RequiresPermission("cuti_akademik.edit")]
+       // [RequiresPermission("cuti_akademik.edit")]
         public async Task<IActionResult> UpdateCutiAkademik(string id, [FromForm] UpdateCutiAkademikRequest dto)
         {
             try
@@ -254,7 +254,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpDelete("DeleteCutiAkademik/{id}")]
-        [RequiresPermission("cuti_akademik.delete")]
+        //[RequiresPermission("cuti_akademik.delete")]
         public async Task<IActionResult> DeleteCutiAkademik(string id)
         {
             var modifiedBy = HttpContext.Items["UserId"]?.ToString() ?? "system";
@@ -268,7 +268,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpGet("GetRiwayatCutiAkademik")]
-        [RequiresPermission("cuti_akademik.view")]
+        //[RequiresPermission("cuti_akademik.view")]
         public async Task<IActionResult> GetRiwayatCutiAkademik(
             [FromQuery] string userId = "", 
             [FromQuery] string status = "", 
@@ -279,7 +279,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpGet("ExportRiwayatCutiAkademikToExcel")]
-        [RequiresPermission("cuti_akademik.export")]
+        //[RequiresPermission("cuti_akademik.export")]
         public async Task<IActionResult> ExportRiwayatCutiAkademikToExcel([FromQuery] string userId = "")
         {
             try
@@ -348,7 +348,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpGet("DownloadFileCutiAkademik/{filename}")]
-        [RequiresPermission("cuti_akademik.print")]
+        //[RequiresPermission("cuti_akademik.print")]
         public IActionResult DownloadFileCutiAkademik(string filename)
         {
             var path = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads/cuti", filename);
@@ -361,7 +361,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpPut("ApproveCutiAkademik")]
-        [RequiresPermission("cuti_akademik.approve_reject")]
+        //[RequiresPermission("cuti_akademik.approve_reject")]
         public async Task<IActionResult> ApproveCutiAkademik([FromBody] ApproveCutiAkademikRequest dto)
         {
             try
@@ -413,7 +413,7 @@ namespace astratech_apps_backend.Controllers
         }
 
         [HttpPut("ApproveCutiAkademikByProdi")]
-        [RequiresPermission("cuti_akademik.approve_reject")]
+       // [RequiresPermission("cuti_akademik.approve_reject")]
         public async Task<IActionResult> ApproveCutiAkademikByProdi([FromBody] ApproveCutiAkademikByProdiRequest dto)
         {
             try
@@ -472,17 +472,6 @@ namespace astratech_apps_backend.Controllers
                     return BadRequest(new { message = "Username harus diisi." });
                 }
                 
-                var detectedRole = await _repository.DetectUserRoleAsync(dto.Username);
-                if (string.IsNullOrEmpty(detectedRole))
-                {
-                    return BadRequest(new { 
-                        message = "ROL tidak Valid",
-                        username = dto.Username
-                    });
-                }
-                
-                dto.Role = detectedRole;
-                
                 var success = await _repository.RejectCutiAsync(dto);
                 
                 if (success)    
@@ -491,22 +480,12 @@ namespace astratech_apps_backend.Controllers
                         rejected = true,
                         id = dto.Id,
                         rejectedBy = dto.Username,
-                        role = detectedRole,
-                        message = "Cuti Akademik Berhasil Ditolak"
+                        message = "Cuti Akademik berhasil ditolak"
                     });
                 }
                 
                 return BadRequest(new { 
-                    message = "Gagal menolak cuti akademik.",
-                    id = dto.Id,
-                    detectedRole = detectedRole,
-                    username = dto.Username
-                });
-            }
-            catch (ArgumentException)
-            {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat menolak cuti akademik."
+                    message = "Gagal menolak cuti akademik."
                 });
             }
             catch (InvalidOperationException)
@@ -515,31 +494,22 @@ namespace astratech_apps_backend.Controllers
                     message = "Operasi tidak valid saat menolak cuti akademik."
                 });
             }
+            catch (Exception)
+            {
+                return BadRequest(new { 
+                    message = "Terjadi kesalahan saat menolak cuti akademik."
+                });
+            }
         }
 
         [HttpPut("UploadSKCutiAkademik")]
-        [RequiresPermission("cuti_akademik.edit")]
+        //[RequiresPermission("cuti_akademik.edit")]
         public async Task<IActionResult> UploadSKCutiAkademik([FromForm] UploadSKCutiAkademikRequest dto)
         {
             try
             {
                 var allowedFileExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
                 const int maxFileSize = 10 * 1024 * 1024; 
-                
-                if (string.IsNullOrEmpty(dto.Id))
-                {
-                    return BadRequest(new { message = "ID cuti akademik harus diisi." });
-                }
-                
-                if (dto.FileSK == null || dto.FileSK.Length == 0)
-                {
-                    return BadRequest(new { message = "File SK harus diupload." });
-                }
-                
-                if (string.IsNullOrEmpty(dto.UploadBy))
-                {
-                    return BadRequest(new { message = "UploadBy harus diisi." });
-                }
 
                 var fileExtension = Path.GetExtension(dto.FileSK.FileName).ToLowerInvariant();
                 
@@ -557,21 +527,15 @@ namespace astratech_apps_backend.Controllers
                 
                 return Ok(new { 
                     message = "SK berhasil diupload.",
-                    success = true,
-                    id = dto.Id
                 });
             }
-            catch (InvalidOperationException ex)
+            catch (InvalidOperationException)
             {
-                return BadRequest(new { 
-                    message = ex.Message
-                });
+                return BadRequest(new { message = "Operasi tidak valid saat upload SK." });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return BadRequest(new { 
-                    message = $"Terjadi kesalahan: {ex.Message}"
-                });
+                return BadRequest(new { message = "Gagal upload SK." });
             }
         }
     }
