@@ -16,7 +16,5 @@ namespace astratech_apps_backend.DTOs.CutiAkademik
        
         [Required(ErrorMessage = "Username harus diisi")]
         public string Username { get; set; } = "";
-
-        public string? Keterangan { get; set; }
     }
 }
