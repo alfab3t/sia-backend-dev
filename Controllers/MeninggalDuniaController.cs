@@ -207,33 +207,24 @@ namespace astratech_apps_backend.Controllers
         //[RequiresPermission("meninggal_dunia.create")]
         public async Task<IActionResult> FinalizeDraftMeninggalDunia(string draftId)
         {
-            try
-            {
-                const string userIdKey = "UserId";
-                const string systemUser = "system";
-                
-                var updatedBy = HttpContext.Items[userIdKey]?.ToString() ?? systemUser;
-                var officialId = await _repository.FinalizeAsync(draftId, updatedBy);
-                
-                if (string.IsNullOrEmpty(officialId))
-                {
-                    return BadRequest(new { 
-                        message = "Gagal mengajukan Meninggal Dunia.",
-                        draftId = draftId
-                    });
-                }
-
-                return Ok(new { 
-                    message = "Pengajuan Meninggal Dunia Berhasil Dikirim.",
-                });
-            }
-            catch (Exception)
+            const string userIdKey = "UserId";
+            const string systemUser = "system";
+            
+            var updatedBy = HttpContext.Items[userIdKey]?.ToString() ?? systemUser;
+            var officialId = await _repository.FinalizeAsync(draftId, updatedBy);
+            
+            if (string.IsNullOrEmpty(officialId))
             {
                 return BadRequest(new { 
-                    message = "Terjadi kesalahan saat memfinalisasi draft.",
+                    message = "Gagal mengajukan Meninggal Dunia.",
                     draftId = draftId
                 });
             }
+
+            return Ok(new { 
+                message = "Pengajuan Meninggal Dunia Berhasil Dikirim.",
+                officialId = officialId
+            });
         }
 
         [HttpPut("UpdateMeninggalDunia/{id}")]

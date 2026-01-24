@@ -33,6 +33,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                 cmd.Parameters.AddWithValue("@MahasiswaId", dto.MhsId ?? "");
                 cmd.Parameters.AddWithValue("@CreatedBy", createdBy ?? "");
 
+                // Karena SP menggunakan SET NOCOUNT ON, gunakan ExecuteNonQuery
                 await cmd.ExecuteNonQueryAsync();
                 return "DRAFT_CREATED";
             }
@@ -105,33 +106,63 @@ namespace astratech_apps_backend.Repositories.Implementations
 
         public async Task<string> FinalizeAsync(string draftId, string updatedBy)
         {
-            try
+            int maxRetries = 10; // Increase retry attempts
+            
+            for (int attempt = 0; attempt < maxRetries; attempt++)
             {
-                await using var conn = new SqlConnection(_conn);
-                await conn.OpenAsync();
-
-                await using var cmd = new SqlCommand("sia_createMeninggalDunia", conn)
+                try
                 {
-                    CommandType = CommandType.StoredProcedure
-                };
-                
-                cmd.Parameters.AddWithValue("@Step", "STEP2");
-                cmd.Parameters.AddWithValue("@Lampiran", draftId);
-                cmd.Parameters.AddWithValue("@MahasiswaId", updatedBy);
-                cmd.Parameters.AddWithValue("@CreatedBy", updatedBy);
+                    await using var conn = new SqlConnection(_conn);
+                    await conn.OpenAsync();
 
-                await using var reader = await cmd.ExecuteReaderAsync();
-                if (await reader.ReadAsync())
-                {
-                    return reader["idbaru"]?.ToString() ?? "";
+                    await using var cmd = new SqlCommand("sia_createMeninggalDunia", conn)
+                    {
+                        CommandType = CommandType.StoredProcedure
+                    };
+                    
+                    cmd.Parameters.AddWithValue("@Step", "STEP2");
+                    cmd.Parameters.AddWithValue("@Lampiran", draftId);
+                    cmd.Parameters.AddWithValue("@MahasiswaId", updatedBy);
+                    cmd.Parameters.AddWithValue("@CreatedBy", "");
+
+                    // Add random delay before each attempt to reduce collision
+                    if (attempt > 0)
+                    {
+                        var preDelayMs = new Random().Next(100, 500);
+                        await Task.Delay(preDelayMs);
+                    }
+
+                    await using var reader = await cmd.ExecuteReaderAsync();
+                    if (await reader.ReadAsync())
+                    {
+                        var result = reader["idbaru"]?.ToString();
+                        if (!string.IsNullOrEmpty(result))
+                        {
+                            return result;
+                        }
+                    }
+                    
+                    // If no result, wait and retry
+                    await Task.Delay(500);
                 }
-                
-                return "";
+                catch (SqlException ex) when (ex.Number == 2627) // Duplicate key error
+                {
+                    if (attempt == maxRetries - 1)
+                    {
+                        throw new InvalidOperationException($"Gagal finalize setelah {maxRetries} percobaan karena duplicate key.");
+                    }
+                    
+                    // Exponential backoff with jitter
+                    var delayMs = (int)Math.Pow(2, attempt) * 1000 + new Random().Next(500, 2000);
+                    await Task.Delay(Math.Min(delayMs, 10000)); // Max 10 seconds
+                }
+                catch (Exception ex)
+                {
+                    throw new InvalidOperationException($"Error in FinalizeAsync: {ex.Message}");
+                }
             }
-            catch (Exception)
-            {
-                return "";
-            }
+            
+            throw new InvalidOperationException("Gagal finalize setelah semua percobaan.");
         }
 
         public async Task<IEnumerable<MahasiswaDropdownDto>> GetMahasiswaListAsync(string? search = null)
