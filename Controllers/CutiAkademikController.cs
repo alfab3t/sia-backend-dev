@@ -370,11 +370,12 @@ namespace astratech_apps_backend.Controllers
                 if (string.IsNullOrEmpty(detectedRole))
                 {
                     return BadRequest(new { 
-                        message = "role tidak valid.",
+                        message = "Role tidak valid untuk user ini.",
                         username = dto.ApprovedBy
                     });
                 }
                 
+                // Set role yang sudah di-detect (sudah dalam format yang benar untuk SP)
                 dto.Role = detectedRole;
                 
                 var success = await _repository.ApproveCutiAsync(dto);
@@ -382,31 +383,30 @@ namespace astratech_apps_backend.Controllers
                 if (success)
                 {
                     return Ok(new { 
+                        message = "Cuti Akademik berhasil disetujui.",
                         approved = true,
                         id = dto.Id,
                         approvedBy = dto.ApprovedBy,
-                        role = detectedRole,
-                        message = "Cuti Akademik berhasil Disetujui"
+                        role = detectedRole
                     });
                 }
                 
                 return BadRequest(new { 
-                    message = "Gagal Menyetujui Cuti Akademik.",
-                    id = dto.Id,
-                    username = dto.ApprovedBy
-                });
-            }
-            catch (ArgumentException)
-            {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat menyetujui cuti akademik.",
+                    message = "Gagal menyetujui cuti akademik.",
                     id = dto.Id
                 });
             }
-            catch (InvalidOperationException)
+            catch (InvalidOperationException ex)
             {
                 return BadRequest(new { 
-                    message = "Operasi tidak valid saat menyetujui cuti akademik.",
+                    message = ex.Message,
+                    id = dto.Id
+                });
+            }
+            catch (Exception)
+            {
+                return BadRequest(new { 
+                    message = "Terjadi kesalahan saat menyetujui cuti akademik.",
                     id = dto.Id
                 });
             }

@@ -410,26 +410,41 @@ namespace astratech_apps_backend.Repositories.Implementations
        
         public async Task<bool> ApproveCutiAsync(ApproveCutiAkademikRequest dto)
         {
-            await using var conn = new SqlConnection(_conn);
-            await conn.OpenAsync();
-
-            var cmd = new SqlCommand("sia_setujuiCutiAkademik", conn)
+            try
             {
-                CommandType = CommandType.StoredProcedure
-            };
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
 
-            cmd.Parameters.AddWithValue("@CutiAkademikId", dto.Id);
-            cmd.Parameters.AddWithValue("@Role", dto.Role.ToLower());
-            cmd.Parameters.AddWithValue("@ApprovedBy", dto.ApprovedBy);
+                var cmd = new SqlCommand("sia_setujuiCutiAkademik", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
 
-            using var reader = await cmd.ExecuteReaderAsync();
-            if (await reader.ReadAsync())
-            {
-                var success = Convert.ToBoolean(reader["Success"]);
-                return success;
+                cmd.Parameters.AddWithValue("@CutiAkademikId", dto.Id);
+                cmd.Parameters.AddWithValue("@Role", dto.Role);
+                cmd.Parameters.AddWithValue("@ApprovedBy", dto.ApprovedBy);
+
+                using var reader = await cmd.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    var success = Convert.ToBoolean(reader["Success"]);
+                    var message = reader["Message"]?.ToString() ?? "";
+                    var newStatus = reader["NewStatus"]?.ToString() ?? "";
+                    
+                    if (!success)
+                    {
+                        throw new InvalidOperationException($"{message}");
+                    }
+                    
+                    return success;
+                }
+
+                throw new InvalidOperationException("SP tidak mengembalikan result set");
             }
-
-            return false;
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"{ex.Message}");
+            }
         }
 
         public async Task<bool> ApproveProdiCutiAsync(ApproveCutiAkademikByProdiRequest dto)
@@ -521,18 +536,6 @@ namespace astratech_apps_backend.Repositories.Implementations
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
                 
-                return await TryDetectRoleFromStoredProcedureAsync(conn, username);
-            }
-            catch (Exception)
-            {
-                return "";
-            }
-        }
-
-        private async Task<string> TryDetectRoleFromStoredProcedureAsync(SqlConnection conn, string username)
-        {
-            try
-            {
                 await using var cmd = new SqlCommand("all_getIdentityByUser", conn)
                 {
                     CommandType = CommandType.StoredProcedure
@@ -543,45 +546,29 @@ namespace astratech_apps_backend.Repositories.Implementations
 
                 if (await reader.ReadAsync())
                 {
-                    return ProcessUserRoleFromReader(reader, username);
+                    var rolId = reader["rol_id"]?.ToString() ?? "";
+                    var jabMainId = reader["jab_main_id"]?.ToString() ?? "";
+                    
+                    // Mapping rol_id ke role name untuk SP approval
+                    return rolId switch
+                    {
+                        "ROL999" => "wadir1",
+                        "ROL71" => "prodi", 
+                        _ when username.Contains("finance", StringComparison.OrdinalIgnoreCase) => "finance",
+                        _ when jabMainId == "4" => "wadir1",  // fallback jika rol_id kosong
+                        _ when jabMainId == "6" => "prodi",   // fallback jika rol_id kosong
+                        _ => ""
+                    };
                 }
                 
                 return "";
             }
-            catch
+            catch (Exception)
             {
                 return "";
             }
         }
 
-        private string ProcessUserRoleFromReader(SqlDataReader reader, string username)
-        {
-            var strMainId = reader["str_main_id"]?.ToString() ?? "";
-            var jabMainId = reader["jab_main_id"]?.ToString() ?? "";
-            var rolId = reader["rol_id"]?.ToString() ?? "";
-            
-            // Prioritas pertama: gunakan rol_id dari database jika ada
-            if (!string.IsNullOrEmpty(rolId))
-            {
-                return rolId;
-            }
-            
-            // Fallback: mapping jab_main_id ke role name
-            var role = jabMainId switch
-            {
-                "4" => "wadir1",                    
-                "6" => "prodi",                       
-                "1" when username.ToLower().Contains("finance") => "finance", 
-                _ => "other"                       
-            };
-            
-            if (username.ToLower().Equals("user_finance") && jabMainId == "1" && strMainId == "27")
-            {
-                role = "finance";
-            }
-            
-            return role;
-        }
             
     }
 }
