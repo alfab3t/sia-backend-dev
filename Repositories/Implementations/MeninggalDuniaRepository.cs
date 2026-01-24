@@ -15,7 +15,31 @@ namespace astratech_apps_backend.Repositories.Implementations
 
         public async Task<string> CreateAsync(CreateMeninggalDuniaRequest dto, string createdBy)
         {
-            throw new NotImplementedException("Use CreateWithMahasiswaDataAsync instead");
+            try
+            {
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
+                
+                // Save file lampiran
+                var lampiranFileName = SaveFile(dto.LampiranFile);
+                
+                await using var cmd = new SqlCommand("sia_createMeninggalDunia", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                cmd.Parameters.AddWithValue("@Step", "STEP1");
+                cmd.Parameters.AddWithValue("@Lampiran", lampiranFileName ?? "");
+                cmd.Parameters.AddWithValue("@MahasiswaId", dto.MhsId ?? "");
+                cmd.Parameters.AddWithValue("@CreatedBy", createdBy ?? "");
+
+                await cmd.ExecuteNonQueryAsync();
+                return "DRAFT_CREATED";
+            }
+            catch (Exception)
+            {
+                throw new InvalidOperationException("Terjadi kesalahan saat membuat pengajuan meninggal dunia.");
+            }
         }
 
         public async Task<string> CreateWithMahasiswaDataAsync(string mhsId, string lampiranFileName, MahasiswaDetailDto mahasiswaData, string createdBy)
@@ -713,6 +737,27 @@ namespace astratech_apps_backend.Repositories.Implementations
             {
                 return null;
             }
+        }
+
+        private string? SaveFile(IFormFile? file)
+        {
+            if (file == null || file.Length == 0)
+                return null;
+
+            var folder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads/meninggaldunia");
+
+            if (!Directory.Exists(folder))
+                Directory.CreateDirectory(folder);
+
+            var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
+            var filePath = Path.Combine(folder, fileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                file.CopyTo(stream);
+            }
+
+            return fileName;
         }
     }
 }
