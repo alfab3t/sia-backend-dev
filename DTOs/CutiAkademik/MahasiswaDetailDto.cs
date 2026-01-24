@@ -39,7 +39,7 @@ namespace astratech_apps_backend.DTOs.CutiAkademik
         public string NoRek { get; set; } = "";
         public string NamaBank { get; set; } = "";
         public string DulNisn { get; set; } = "";
-        public int KelId { get; set; }
+        public string KelId { get; set; } = "";
         public string DulNik { get; set; } = "";
         public string RfidAktif { get; set; } = "";
     }

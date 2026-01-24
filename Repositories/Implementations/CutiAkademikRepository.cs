@@ -625,7 +625,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                         NoRek = reader["norek"]?.ToString() ?? "",
                         NamaBank = reader["namabank"]?.ToString() ?? "",
                         DulNisn = reader["dul_nisn"]?.ToString() ?? "",
-                        KelId = SafeConvertToInt(reader["kel_id"]),
+                        KelId = reader["kel_id"]?.ToString() ?? "",
                         DulNik = reader["dul_nik"]?.ToString() ?? "",
                         RfidAktif = reader["rfid_aktif"]?.ToString() ?? ""
                     };
@@ -865,7 +865,7 @@ namespace astratech_apps_backend.Repositories.Implementations
                         MhsNama = reader["mhs_nama"]?.ToString() ?? "",
                         KonNama = reader["kon_nama"]?.ToString() ?? "",
                         MhsAngkatan = reader["mhs_angkatan"]?.ToString() ?? "",
-                        Kelas = SafeConvertToInt(reader["kelas"])
+                        Kelas = reader["kelas"]?.ToString() ?? ""
                     };
                 }
                 
