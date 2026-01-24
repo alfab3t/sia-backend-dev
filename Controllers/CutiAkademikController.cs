@@ -1,8 +1,6 @@
 using astratech_apps_backend.DTOs.CutiAkademik;
 using astratech_apps_backend.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using astratech_apps_backend.Helpers;
-using System.ComponentModel.DataAnnotations;
 
 namespace astratech_apps_backend.Controllers
 {
@@ -118,22 +116,10 @@ namespace astratech_apps_backend.Controllers
                 
                 return Ok(new { draftId = id });
             }
-            catch (ArgumentException)
-            {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat membuat draft."
-                });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { 
-                    message = ex.Message
-                });
-            }
             catch (Exception)
             {
                 return BadRequest(new { 
-                    message = "Terjadi kesalahan saat membuat draft cuti akademik."
+                    message = "Terjadi kesalahan saat membuat draft."
                 });
             }
         }
@@ -153,16 +139,10 @@ namespace astratech_apps_backend.Controllers
                 
                 return Ok(new { finalId = id });
             }
-            catch (ArgumentException)
+            catch (Exception)
             {
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat generate final ID."
-                });
-            }
-            catch (InvalidOperationException)
-            {
-                return BadRequest(new { 
-                    message = "Operasi tidak valid saat generate final ID."
                 });
             }
         }
@@ -245,16 +225,10 @@ namespace astratech_apps_backend.Controllers
                 
                 return BadRequest(new { message = "Gagal Perbarui Data Pengajuan Cuti Akademik." });
             }
-            catch (ArgumentException)
+            catch (Exception)
             {
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat mengupdate data."
-                });
-            }
-            catch (InvalidOperationException)
-            {
-                return BadRequest(new { 
-                    message = "Operasi tidak valid saat mengupdate data."
                 });
             }
         }
@@ -339,13 +313,7 @@ namespace astratech_apps_backend.Controllers
                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     fileName);
             }
-            catch (ArgumentException)
-            {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat membuat file Excel."
-                });
-            }
-            catch (InvalidOperationException)
+            catch (Exception)
             {
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat membuat file Excel."
@@ -376,12 +344,10 @@ namespace astratech_apps_backend.Controllers
                 if (string.IsNullOrEmpty(detectedRole))
                 {
                     return BadRequest(new { 
-                        message = "Role tidak valid untuk user ini.",
-                        username = dto.ApprovedBy
+                        message = "Role tidak valid untuk user ini."
                     });
                 }
                 
-                // Set role yang sudah di-detect (sudah dalam format yang benar untuk SP)
                 dto.Role = detectedRole;
                 
                 var success = await _repository.ApproveCutiAsync(dto);
@@ -389,31 +355,18 @@ namespace astratech_apps_backend.Controllers
                 if (success)
                 {
                     return Ok(new { 
-                        message = "Cuti Akademik berhasil disetujui.",
-                        approved = true,
-                        id = dto.Id,
-                        approvedBy = dto.ApprovedBy,
-                        role = detectedRole
+                        message = "Cuti Akademik berhasil disetujui."
                     });
                 }
                 
                 return BadRequest(new { 
-                    message = "Gagal menyetujui cuti akademik.",
-                    id = dto.Id
-                });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { 
-                    message = ex.Message,
-                    id = dto.Id
+                    message = "Gagal menyetujui cuti akademik."
                 });
             }
             catch (Exception)
             {
                 return BadRequest(new { 
-                    message = "Terjadi kesalahan saat menyetujui cuti akademik.",
-                    id = dto.Id
+                    message = "Terjadi kesalahan saat menyetujui cuti akademik."
                 });
             }
         }
@@ -448,16 +401,10 @@ namespace astratech_apps_backend.Controllers
                 
                 return BadRequest(new { message = "Gagal Menyetujui Cuti Akademik." });
             }
-            catch (ArgumentException)
+            catch (Exception)
             {
                 return BadRequest(new { 
                     message = "Terjadi kesalahan saat menyetujui cuti akademik."
-                });
-            }
-            catch (InvalidOperationException)
-            {
-                return BadRequest(new { 
-                    message = "Operasi tidak valid saat menyetujui cuti akademik."
                 });
             }
         }
@@ -483,21 +430,12 @@ namespace astratech_apps_backend.Controllers
                 if (success)    
                 {
                     return Ok(new { 
-                        rejected = true,
-                        id = dto.Id,
-                        rejectedBy = dto.Username,
                         message = "Cuti Akademik berhasil ditolak"
                     });
                 }
                 
                 return BadRequest(new { 
                     message = "Gagal menolak cuti akademik."
-                });
-            }
-            catch (InvalidOperationException)
-            {
-                return BadRequest(new { 
-                    message = "Operasi tidak valid saat menolak cuti akademik."
                 });
             }
             catch (Exception)
@@ -532,12 +470,8 @@ namespace astratech_apps_backend.Controllers
                 var success = await _repository.UploadSKAsync(dto);
                 
                 return Ok(new { 
-                    message = "SK berhasil diupload.",
+                    message = "SK berhasil diupload."
                 });
-            }
-            catch (InvalidOperationException)
-            {
-                return BadRequest(new { message = "Operasi tidak valid saat upload SK." });
             }
             catch (Exception)
             {
@@ -563,20 +497,10 @@ namespace astratech_apps_backend.Controllers
 
                 return Ok(data);
             }
-            catch (InvalidOperationException ex)
+            catch (Exception)
             {
                 return BadRequest(new { 
-                    message = "Terjadi kesalahan saat mengambil detail mahasiswa.",
-                    detail = ex.Message,
-                    mahasiswaId = mahasiswaId
-                });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat mengambil detail mahasiswa.",
-                    detail = ex.Message,
-                    mahasiswaId = mahasiswaId
+                    message = "Terjadi kesalahan saat mengambil detail mahasiswa."
                 });
             }
         }
@@ -667,20 +591,10 @@ namespace astratech_apps_backend.Controllers
 
                 return Ok(data);
             }
-            catch (InvalidOperationException ex)
+            catch (Exception)
             {
                 return BadRequest(new { 
-                    message = "Terjadi kesalahan saat mengambil data mahasiswa.",
-                    detail = ex.Message,
-                    nim = nim
-                });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat mengambil data mahasiswa.",
-                    detail = ex.Message,
-                    nim = nim
+                    message = "Terjadi kesalahan saat mengambil data mahasiswa."
                 });
             }
         }
