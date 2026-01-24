@@ -215,16 +215,14 @@ namespace astratech_apps_backend.Repositories.Implementations
 
         public async Task<string?> CreateDraftByProdiAsync(CreateDraftCutiAkademikByProdiRequest dto)
         {
-            await using var conn = new SqlConnection(_conn);
-            await conn.OpenAsync();
-
             try
             {
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
                 
                 var fileSP = SaveFile(dto.LampiranSuratPengajuan);
                 var fileLampiran = SaveFile(dto.Lampiran);
 
-              
                 var cmd = new SqlCommand("sia_createCutiAkademikByProdi", conn)
                 {
                     CommandType = CommandType.StoredProcedure
@@ -241,43 +239,19 @@ namespace astratech_apps_backend.Repositories.Implementations
                 cmd.Parameters.AddWithValue("@DraftId", ""); 
                 cmd.Parameters.AddWithValue("@ModifiedBy", ""); 
 
-                var result = await cmd.ExecuteScalarAsync();
-                return result?.ToString();
-            }
-            catch (SqlException ex) when (ex.Number == 2627) 
-            {
+                // SP sekarang return DraftId dengan SET NOCOUNT OFF
+                using var reader = await cmd.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    return reader["DraftId"]?.ToString();
+                }
                 
-                return await CreateDraftByProdiDirectAsync(dto, conn);
+                return null;
             }
             catch (Exception)
             {
-                throw;
+                throw new InvalidOperationException($"Terjadi kesalahan saat membuat draft cuti akademik.");
             }
-        }
-
-        private async Task<string?> CreateDraftByProdiDirectAsync(CreateDraftCutiAkademikByProdiRequest dto, SqlConnection conn)
-        {
-            var fileSP = SaveFile(dto.LampiranSuratPengajuan);
-            var fileLampiran = SaveFile(dto.Lampiran);
-
-            var cmd = new SqlCommand("sia_createCutiAkademikByProdi", conn)
-            {
-                CommandType = CommandType.StoredProcedure
-            };
-
-            cmd.Parameters.AddWithValue("@Step", "STEP1");
-            cmd.Parameters.AddWithValue("@TahunAjaran", dto.TahunAjaran ?? "");
-            cmd.Parameters.AddWithValue("@Semester", dto.Semester ?? "");
-            cmd.Parameters.AddWithValue("@LampiranSuratPengajuan", fileSP ?? "");
-            cmd.Parameters.AddWithValue("@Lampiran", fileLampiran ?? "");
-            cmd.Parameters.AddWithValue("@MahasiswaId", dto.MhsId ?? "");
-            cmd.Parameters.AddWithValue("@Menimbang", dto.Menimbang ?? "");
-            cmd.Parameters.AddWithValue("@ApprovalProdi", dto.ApprovalProdi ?? "");
-            cmd.Parameters.AddWithValue("@DraftId", ""); 
-            cmd.Parameters.AddWithValue("@ModifiedBy", dto.ApprovalProdi ?? "");
-
-            var result = await cmd.ExecuteScalarAsync();
-            return result?.ToString();
         }
 
         public async Task<string?> GenerateIdByProdiAsync(GenerateIdFinalCutiAkademikByProdiRequest dto)
@@ -287,7 +261,6 @@ namespace astratech_apps_backend.Repositories.Implementations
 
             try
             {
-                
                 var cmd = new SqlCommand("sia_createCutiAkademikByProdi", conn)
                 {
                     CommandType = CommandType.StoredProcedure
@@ -304,8 +277,14 @@ namespace astratech_apps_backend.Repositories.Implementations
                 cmd.Parameters.AddWithValue("@DraftId", dto.DraftId ?? "");
                 cmd.Parameters.AddWithValue("@ModifiedBy", dto.ModifiedBy ?? "");
 
-                var result = await cmd.ExecuteScalarAsync();
-                return result?.ToString();
+                // SP sekarang return OfficialId dengan SET NOCOUNT OFF
+                using var reader = await cmd.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    return reader["OfficialId"]?.ToString();
+                }
+                
+                return null;
             }
             catch (Exception)
             {
