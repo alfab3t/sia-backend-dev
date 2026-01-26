@@ -14,11 +14,9 @@ namespace astratech_apps_backend.DTOs.CutiAkademik
         [Required(ErrorMessage = "Semester harus diisi")]
         public string Semester { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Lampiran surat pengajuan harus diupload")]
-        public IFormFile LampiranSuratPengajuan { get; set; } = null!;
+        public IFormFile? LampiranSuratPengajuan { get; set; }
 
-        [Required(ErrorMessage = "Lampiran harus diupload")]
-        public IFormFile Lampiran { get; set; } = null!;
+        public IFormFile? Lampiran { get; set; }
 
         [Required(ErrorMessage = "ModifiedBy harus diisi")]
         public string ModifiedBy { get; set; } = string.Empty;
