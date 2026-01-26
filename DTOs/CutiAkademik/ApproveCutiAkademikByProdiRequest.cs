@@ -9,9 +9,7 @@ namespace astratech_apps_backend.DTOs.CutiAkademik
         [Required(ErrorMessage = "ID cuti akademik harus diisi")]
         public string Id { get; set; } = "";
         
-       
-        [Required(ErrorMessage = "Menimbang/pertimbangan harus diisi")]
-        [MinLength(10, ErrorMessage = "Menimbang minimal 10 karakter")]
+        // Menimbang sekarang optional (tidak wajib)
         public string Menimbang { get; set; } = "";
         
        

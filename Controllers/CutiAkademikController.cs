@@ -390,10 +390,7 @@ namespace astratech_apps_backend.Controllers
                     return BadRequest(new { message = "ApprovedBy harus diisi." });
                 }
                 
-                if (string.IsNullOrWhiteSpace(dto.Menimbang))
-                {
-                    return BadRequest(new { message = "Menimbang/pertimbangan harus diisi dan tidak boleh kosong." });
-                }
+                // Menimbang sekarang optional - tidak perlu validasi wajib
                 
                 var success = await _repository.ApproveProdiCutiAsync(dto);
                 
