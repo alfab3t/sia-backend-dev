@@ -9,8 +9,5 @@ namespace astratech_apps_backend.DTOs.CutiAkademik
         
         [Required(ErrorMessage = "ModifiedBy harus diisi")]
         public string ModifiedBy { get; set; } = "";
-        
-        [Required(ErrorMessage = "Prodi ID harus diisi")]
-        public string ProdiId { get; set; } = "";  
     }
 }
