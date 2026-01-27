@@ -770,6 +770,61 @@ namespace astratech_apps_backend.Repositories.Implementations
             }
         }
 
+        public async Task<IEnumerable<KonsentrasiDropdownDto>> GetKonsentrasiBySekprodAsync(string username)
+        {
+            var result = new List<KonsentrasiDropdownDto>();
+            
+            try
+            {
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
+                
+                await using var cmd = new SqlCommand("sia_getListKonsentrasiBySekprod", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                // SP membutuhkan 50 parameter, kita isi parameter pertama dengan username
+                cmd.Parameters.AddWithValue("@p1", username);
+                for (int i = 2; i <= 50; i++)
+                {
+                    cmd.Parameters.AddWithValue($"@p{i}", "");
+                }
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    result.Add(new KonsentrasiDropdownDto
+                    {
+                        Id = SafeConvertToInt(reader["id"]),
+                        Nama = reader["nama"]?.ToString() ?? ""
+                    });
+                }
+            }
+            catch (Exception)
+            {
+                // Return empty list on error
+            }
+            
+            return result;
+        }
+
+        private static int SafeConvertToInt(object value)
+        {
+            if (value == null || value == DBNull.Value)
+                return 0;
+                
+            var stringValue = value.ToString();
+            if (string.IsNullOrEmpty(stringValue))
+                return 0;
+                
+            if (int.TryParse(stringValue, out int result))
+                return result;
+                
+            return 0; // Return 0 if conversion fails
+        }
+
         private string? SaveFile(IFormFile? file)
         {
             if (file == null || file.Length == 0)

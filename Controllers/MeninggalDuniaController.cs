@@ -473,5 +473,25 @@ namespace astratech_apps_backend.Controllers
                 return BadRequest(new { message = "Terjadi kesalahan saat membuat file Excel." });
             }
         }
+
+        [HttpGet("GetKonsentrasiBySekprod")]
+        [RequiresPermission("meninggal_dunia.view")]
+        public async Task<IActionResult> GetKonsentrasiBySekprod([FromQuery] string username)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(username))
+                {
+                    return BadRequest(new { message = "Username harus diisi." });
+                }
+
+                var data = await _repository.GetKonsentrasiBySekprodAsync(username);
+                return Ok(data);
+            }
+            catch (Exception)
+            {
+                return BadRequest(new { message = "Terjadi kesalahan saat mengambil data konsentrasi." });
+            }
+        }
     }
 }
