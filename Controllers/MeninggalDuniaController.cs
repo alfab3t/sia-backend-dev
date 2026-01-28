@@ -409,13 +409,15 @@ namespace astratech_apps_backend.Controllers
         [RequiresPermission("meninggal_dunia.view")]
         public async Task<IActionResult> GetRiwayatMeninggalDunia([FromQuery] GetRiwayatMeninggalDuniaRequest req)
         {
-            var result = await _repository.GetRiwayatAsync(req);
-            return Ok(new GetRiwayatMeninggalDuniaResponse
+            try
             {
-                Data = result.Data.ToList(),
-                TotalData = result.TotalData,
-                TotalHalaman = (int)Math.Ceiling((double)result.TotalData / (req.PageSize > 0 ? req.PageSize : 50))
-            });
+                var result = await _repository.GetRiwayatAsync(req);
+                return Ok(new { data = result.Data.ToList() });
+            }
+            catch (Exception)
+            {
+                return BadRequest(new { message = "Terjadi kesalahan saat mengambil data riwayat." });
+            }
         }
 
         [HttpGet("ExportRiwayatMeninggalDuniaToExcel")]

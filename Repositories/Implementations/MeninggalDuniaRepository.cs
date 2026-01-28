@@ -581,14 +581,20 @@ namespace astratech_apps_backend.Repositories.Implementations
                     });
                 }
 
-                var total = result.Count;
+                // Apply search filter if keyword is provided
+                if (!string.IsNullOrEmpty(req.Keyword))
+                {
+                    var keyword = req.Keyword.ToLower();
+                    result = result.Where(x => 
+                        x.NoPengajuan.ToLower().Contains(keyword) ||
+                        x.NamaMahasiswa.ToLower().Contains(keyword) ||
+                        x.Nim.ToLower().Contains(keyword) ||
+                        x.Prodi.ToLower().Contains(keyword)
+                    ).ToList();
+                }
 
-                // Apply pagination
-                result = result.Skip((req.PageNumber - 1) * req.PageSize)
-                              .Take(req.PageSize)
-                              .ToList();
-
-                return (result, total);
+                // Return all data without pagination
+                return (result, result.Count);
             }
             catch (Exception)
             {
