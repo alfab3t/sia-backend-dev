@@ -1,4 +1,5 @@
 ﻿using astratech_apps_backend.DTOs.MeninggalDunia;
+using CutiAkademikDTOs = astratech_apps_backend.DTOs.CutiAkademik;
 using astratech_apps_backend.Models;
 using astratech_apps_backend.Repositories.Interfaces;
 using Microsoft.Data.SqlClient;
@@ -216,16 +217,13 @@ namespace astratech_apps_backend.Repositories.Implementations
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
                 
-                await using var cmd = new SqlCommand("sia_getListKonsentrasiBySekprod", conn)
+                await using var cmd = new SqlCommand("sia_getListKonsentrasi", conn)
                 {
                     CommandType = CommandType.StoredProcedure
                 };
 
-                // SP membutuhkan 50 parameter
-                for (int i = 1; i <= 50; i++)
-                {
-                    cmd.Parameters.AddWithValue($"@p{i}", "");
-                }
+                cmd.Parameters.AddWithValue("@Username", "");
+                cmd.Parameters.AddWithValue("@RoleId", "");
 
                 await using var reader = await cmd.ExecuteReaderAsync();
 
@@ -233,8 +231,8 @@ namespace astratech_apps_backend.Repositories.Implementations
                 {
                     result.Add(new ProgramStudiDropdownDto
                     {
-                        ProId = reader["id"]?.ToString() ?? "",
-                        ProNama = reader["nama"]?.ToString() ?? ""
+                        ProId = reader["kon_id"]?.ToString() ?? "",
+                        ProNama = reader["kon_nama"]?.ToString() ?? ""
                     });
                 }
             }
@@ -844,6 +842,41 @@ namespace astratech_apps_backend.Repositories.Implementations
             }
 
             return fileName;
+        }
+
+        public async Task<IEnumerable<CutiAkademikDTOs.MahasiswaByKonsentrasiDto>> GetMahasiswaByKonsentrasiAsync(string username)
+        {
+            var result = new List<CutiAkademikDTOs.MahasiswaByKonsentrasiDto>();
+            
+            try
+            {
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
+                
+                // Gunakan stored procedure yang sudah ada
+                await using var cmd = new SqlCommand("sia_getListMahasiswaByKonsentrasi", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                cmd.Parameters.AddWithValue("@Id", username);
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    result.Add(new CutiAkademikDTOs.MahasiswaByKonsentrasiDto
+                    {
+                        MhsId = reader["mhs_id"]?.ToString() ?? "",
+                        MhsNama = reader["mhs_nama"]?.ToString() ?? ""
+                    });
+                }
+            }
+            catch (Exception)
+            {
+                // Return empty list on error
+            }
+            
+            return result;
         }
     }
 }

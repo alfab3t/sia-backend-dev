@@ -1,4 +1,5 @@
 ﻿using astratech_apps_backend.DTOs.MeninggalDunia;
+using CutiAkademikDTOs = astratech_apps_backend.DTOs.CutiAkademik;
 using astratech_apps_backend.Models;
 
 namespace astratech_apps_backend.Repositories.Interfaces
@@ -28,5 +29,6 @@ namespace astratech_apps_backend.Repositories.Interfaces
         Task<bool> RejectAsync(string id, RejectMeninggalDuniaRequest dto);
         Task<string> DetectUserRoleAsync(string username);
         Task<IEnumerable<KonsentrasiDropdownDto>> GetKonsentrasiBySekprodAsync(string username);
+        Task<IEnumerable<CutiAkademikDTOs.MahasiswaByKonsentrasiDto>> GetMahasiswaByKonsentrasiAsync(string username);
     }
 }

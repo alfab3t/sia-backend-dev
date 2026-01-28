@@ -493,5 +493,25 @@ namespace astratech_apps_backend.Controllers
                 return BadRequest(new { message = "Terjadi kesalahan saat mengambil data konsentrasi." });
             }
         }
+
+        [HttpGet("GetMahasiswaByKonsentrasi")]
+        [RequiresPermission("meninggal_dunia.view")]
+        public async Task<IActionResult> GetMahasiswaByKonsentrasi([FromQuery] string username)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(username))
+                {
+                    return BadRequest(new { message = "Username harus diisi." });
+                }
+
+                var data = await _repository.GetMahasiswaByKonsentrasiAsync(username);
+                return Ok(data);
+            }
+            catch (Exception)
+            {
+                return BadRequest(new { message = "Terjadi kesalahan saat mengambil data mahasiswa." });
+            }
+        }
     }
 }
