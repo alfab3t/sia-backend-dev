@@ -906,10 +906,23 @@ namespace astratech_apps_backend.Repositories.Implementations
 
                 while (await reader.ReadAsync())
                 {
+                    var fullName = reader["mhs_nama"]?.ToString() ?? "";
+                    
+                    // Extract nama saja dari format "NIM - NAMA"
+                    var namaSaja = fullName;
+                    if (fullName.Contains(" - "))
+                    {
+                        var parts = fullName.Split(" - ", 2);
+                        if (parts.Length > 1)
+                        {
+                            namaSaja = parts[1].Trim();
+                        }
+                    }
+                    
                     result.Add(new CutiAkademikDTOs.MahasiswaByKonsentrasiDto
                     {
                         MhsId = reader["mhs_id"]?.ToString() ?? "",
-                        MhsNama = reader["mhs_nama"]?.ToString() ?? ""
+                        MhsNama = namaSaja
                     });
                 }
             }

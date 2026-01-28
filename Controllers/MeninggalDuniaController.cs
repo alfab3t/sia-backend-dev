@@ -127,7 +127,11 @@ namespace astratech_apps_backend.Controllers
         {
             var possiblePaths = new[]
             {
+                // Prioritas utama: folder yang benar
+                Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads/meninggaldunia", filename),
+                // Fallback untuk file lama
                 Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads/meninggal", filename),
+                Path.Combine(Directory.GetCurrentDirectory(), "uploads/meninggaldunia", filename),
                 Path.Combine(Directory.GetCurrentDirectory(), "uploads/meninggal", filename),
                 Path.Combine(Directory.GetCurrentDirectory(), "uploads/meninggal/lampiran", filename),
                 Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads/meninggal/lampiran", filename)
@@ -299,7 +303,7 @@ namespace astratech_apps_backend.Controllers
                 if (request.SK != null)
                 {
                     var skFileName = $"SK_{request.MduId}_{DateTime.Now:yyyyMMddHHmmss}_{request.SK.FileName}";
-                    var skPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads/meninggal", skFileName);
+                    var skPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads/meninggaldunia", skFileName);
                     Directory.CreateDirectory(Path.GetDirectoryName(skPath)!);
                     
                     using (var stream = new FileStream(skPath, FileMode.Create))
@@ -312,7 +316,7 @@ namespace astratech_apps_backend.Controllers
                 if (request.SKPB != null)
                 {
                     var spkbFileName = $"SPKB_{request.MduId}_{DateTime.Now:yyyyMMddHHmmss}_{request.SKPB.FileName}";
-                    var spkbPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads/meninggal", spkbFileName);
+                    var spkbPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads/meninggaldunia", spkbFileName);
                     Directory.CreateDirectory(Path.GetDirectoryName(spkbPath)!);
                     
                     using (var stream = new FileStream(spkbPath, FileMode.Create))
