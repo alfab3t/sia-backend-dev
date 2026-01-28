@@ -76,7 +76,7 @@ namespace astratech_apps_backend.Controllers
         [RequiresPermission("meninggal_dunia.view")]
         public async Task<IActionResult> GetMahasiswaDetailForMeninggalDunia(string mhsId)
         {
-            var data = await _repository.GetMahasiswaDetailAsync(mhsId);
+            var data = await _repository.GetMahasiswaDetailUsingSPAsync(mhsId);
             if (data == null)
                 return NotFound(new { message = "Data mahasiswa tidak ditemukan" });
 

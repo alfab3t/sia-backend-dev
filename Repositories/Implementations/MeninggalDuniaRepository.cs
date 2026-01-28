@@ -105,6 +105,42 @@ namespace astratech_apps_backend.Repositories.Implementations
             }
         }
 
+        public async Task<MahasiswaDetailDto?> GetMahasiswaDetailUsingSPAsync(string mhsId)
+        {
+            try
+            {
+                await using var conn = new SqlConnection(_conn);
+                await conn.OpenAsync();
+                
+                await using var cmd = new SqlCommand("sia_detailMahasiswa", conn)
+                {
+                    CommandType = CommandType.StoredProcedure
+                };
+
+                cmd.Parameters.AddWithValue("@MahasiswaId", mhsId);
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                if (await reader.ReadAsync())
+                {
+                    return new MahasiswaDetailDto
+                    {
+                        MhsId = reader["mhs_id"]?.ToString() ?? "",
+                        MhsNama = reader["mhs_nama"]?.ToString() ?? "",
+                        MhsAngkatan = reader["mhs_angkatan"]?.ToString() ?? "",
+                        ProgramStudi = reader["kon_nama"]?.ToString() ?? "", // SP mengembalikan "pro_nama + ' (' + kon_singkatan + ')'" sebagai kon_nama
+                        Konsentrasi = reader["kon_nama"]?.ToString() ?? "",
+                        KonsentrasiId = reader["kon_id"]?.ToString() ?? ""
+                    };
+                }
+                
+                return null;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
         public async Task<string> FinalizeAsync(string draftId, string updatedBy)
         {
             int maxRetries = 10; // Increase retry attempts
