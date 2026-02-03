@@ -498,13 +498,21 @@ namespace astratech_apps_backend.Repositories.Implementations
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
 
+                // Handle file upload jika ada
+                string? lampiranFileName = null;
+                if (dto.LampiranFile != null && dto.LampiranFile.Length > 0)
+                {
+                    lampiranFileName = SaveFile(dto.LampiranFile);
+                }
+
                 await using var cmd = new SqlCommand("sia_editMeninggalDunia", conn)
                 {
                     CommandType = CommandType.StoredProcedure
                 };
 
                 cmd.Parameters.AddWithValue("@MeninggalDuniaId", id);
-                cmd.Parameters.AddWithValue("@Lampiran", dto.Lampiran ?? "");
+                // Jika ada file baru, gunakan filename baru. Jika tidak, gunakan lampiran string atau kosong
+                cmd.Parameters.AddWithValue("@Lampiran", lampiranFileName ?? dto.Lampiran ?? "");
                 cmd.Parameters.AddWithValue("@ModifiedBy", updatedBy);
 
                 await cmd.ExecuteNonQueryAsync();

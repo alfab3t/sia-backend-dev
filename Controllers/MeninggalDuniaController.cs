@@ -212,32 +212,36 @@ namespace astratech_apps_backend.Controllers
             {
                 if (string.IsNullOrEmpty(id))
                 {
-                    return BadRequest(new { message = "Data pengajuan Meninggal Dunia Tidak Boleh Kosong." });
+                    return BadRequest(new { message = "ID pengajuan meninggal dunia harus diisi." });
                 }
-
-                var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
-                const int maxFileSize = 10 * 1024 * 1024; 
 
                 var updatedBy = HttpContext.Items["UserId"]?.ToString() ?? "system";
 
-                var fileExtension = Path.GetExtension(dto.LampiranFile.FileName).ToLowerInvariant();
-                if (!allowedExtensions.Contains(fileExtension))
+                // Validasi file hanya jika ada file yang diupload
+                if (dto.LampiranFile != null && dto.LampiranFile.Length > 0)
                 {
-                    return BadRequest(new { message = "Tipe file tidak diizinkan." });
-                }
+                    var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
+                    const int maxFileSize = 10 * 1024 * 1024; 
 
-                if (dto.LampiranFile.Length > maxFileSize)
-                {
-                    return BadRequest(new { message = "Ukuran file maksimal 10MB." });
+                    var fileExtension = Path.GetExtension(dto.LampiranFile.FileName).ToLowerInvariant();
+                    if (!allowedExtensions.Contains(fileExtension))
+                    {
+                        return BadRequest(new { message = "Tipe file tidak diizinkan. Gunakan: PDF, JPG, JPEG, atau PNG." });
+                    }
+
+                    if (dto.LampiranFile.Length > maxFileSize)
+                    {
+                        return BadRequest(new { message = "Ukuran file maksimal 10MB." });
+                    }
                 }
 
                 var success = await _repository.UpdateAsync(id, dto, updatedBy);
                 if (!success)
                 {
-                    return BadRequest(new { message = "Gagal Perbarui Data Pengajuan Meninggal Dunia." });
+                    return BadRequest(new { message = "Gagal memperbarui data pengajuan meninggal dunia." });
                 }
 
-                return Ok(new { message = "Data Pengajuan Meninggal Dunia Berhasil Di Perbarui." });
+                return Ok(new { message = "Data pengajuan meninggal dunia berhasil diperbarui." });
             }
             catch (Exception)
             {

@@ -5,16 +5,15 @@ namespace astratech_apps_backend.DTOs.MeninggalDunia
 {
     public class UpdateMeninggalDuniaRequest
     {
-        [Required(ErrorMessage = "ID meninggal dunia harus diisi")]
-        public string Id { get; set; } = "";
+        // ID tidak perlu di DTO karena sudah ada di route parameter
         
-        [Required(ErrorMessage = "ID mahasiswa harus diisi")]
-        public string MhsId { get; set; } = "";
+        // MhsId optional - tidak wajib untuk update
+        public string? MhsId { get; set; }
         
-        [Required(ErrorMessage = "Lampiran harus diisi")]
-        public string Lampiran { get; set; } = "";
+        // Lampiran string optional - tidak wajib untuk update  
+        public string? Lampiran { get; set; }
         
-        [Required(ErrorMessage = "File lampiran harus diupload")]
-        public IFormFile LampiranFile { get; set; } = null!;
+        // File lampiran optional - user bisa choose untuk update atau tidak
+        public IFormFile? LampiranFile { get; set; }
     }
 }
