@@ -33,22 +33,18 @@ namespace astratech_apps_backend.Controllers
                 ModelState.Clear();
                 var result = await _repository.GetAllAsync(req);
 
-                return Ok(new MeninggalDuniaResponse
+                // Return simple array format like other endpoints
+                return Ok(result.Data.Select(x => new MeninggalDuniaListDto
                 {
-                    Data = result.Data.Select(x => new MeninggalDuniaListDto
-                    {
-                        Id = x.Id,
-                        NoPengajuan = x.NoPengajuan,
-                        TanggalPengajuan = x.TanggalPengajuan,
-                        NamaMahasiswa = x.NamaMahasiswa,
-                        Nim = x.Nim,
-                        Prodi = x.Prodi,
-                        NomorSK = x.NomorSK,
-                        Status = x.Status
-                    }).ToList(),
-                    TotalData = result.TotalData,
-                    TotalHalaman = (int)Math.Ceiling((double)result.TotalData / req.PageSize)
-                });
+                    Id = x.Id,
+                    NoPengajuan = x.NoPengajuan,
+                    TanggalPengajuan = x.TanggalPengajuan,
+                    NamaMahasiswa = x.NamaMahasiswa,
+                    Nim = x.Nim,
+                    Prodi = x.Prodi,
+                    NomorSK = x.NomorSK,
+                    Status = x.Status
+                }).ToList());
             }
             catch (Exception)
             {
