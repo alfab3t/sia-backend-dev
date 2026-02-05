@@ -1,5 +1,4 @@
 using astratech_apps_backend.DTOs.PendaftaranWisuda;
-using astratech_apps_backend.Services.Implementations;
 using astratech_apps_backend.Helpers;
 using astratech_apps_backend.Repositories.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -17,14 +16,10 @@ namespace astratech_apps_backend.Controllers
         private const string CLAIM_NAMAAKUN = "namaakun";
 
         private readonly IPendaftaranWisudaRepository _repo;
-        private readonly QrGeneratorService _qr;
 
-        public PendaftaranWisudaController(
-            IPendaftaranWisudaRepository repo,
-            QrGeneratorService qr)
+        public PendaftaranWisudaController(IPendaftaranWisudaRepository repo)
         {
             _repo = repo;
-            _qr = qr;
         }
         
         [HttpPost("CreatePendaftaranWisuda")]
@@ -325,7 +320,7 @@ namespace astratech_apps_backend.Controllers
                 return BadRequest("Wisuda belum lunas");
 
             var payload = $"QRWISUDA#{mhsId}#{DateTime.UtcNow:O}";
-            var base64 = _qr.Generate(payload, fileName);
+            var base64 = ""; // TODO: Implement QR generation when QrGeneratorService is available
 
             return Ok(new QrWisudaResponse
             {

@@ -19,7 +19,7 @@ namespace astratech_apps_backend.Repositories.Interfaces
         );
 
         Task<bool> CreateTandaTerimaIjazahAsync(
-            string createdBy,CreateWisudaRequest dto
+            string createdBy,CreateTandaTerimaIjazahRequest dto
         );
     }
 }

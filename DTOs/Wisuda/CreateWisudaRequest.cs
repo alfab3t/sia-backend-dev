@@ -2,7 +2,7 @@
 
 namespace astratech_apps_backend.DTOs.Wisuda
 {
-    public class CreateWisudaRequest
+    public class CreateTandaTerimaIjazahRequest
     {
         [Required]
         [StringLength(10)]

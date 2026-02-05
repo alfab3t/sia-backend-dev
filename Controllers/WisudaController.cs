@@ -136,7 +136,7 @@ namespace astratech_apps_backend.Controllers
 
         [HttpPost("CreateTandaTerimaIjazah")]
         [RequiresPermission("tanda_terima_ijazah.create")]
-        public async Task<IActionResult> CreateTandaTerimaIjazah([FromBody] CreateWisudaRequest dto)
+        public async Task<IActionResult> CreateTandaTerimaIjazah([FromBody] CreateTandaTerimaIjazahRequest dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);

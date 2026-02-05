@@ -157,7 +157,7 @@ namespace astratech_apps_backend.Repositories.Implementations
             return list;
         }
 
-        public async Task<bool> CreateTandaTerimaIjazahAsync(string createdBy,CreateWisudaRequest dto)
+        public async Task<bool> CreateTandaTerimaIjazahAsync(string createdBy,CreateTandaTerimaIjazahRequest dto)
         {
             await using var conn = new SqlConnection(_conn);
             await using var cmd = new SqlCommand("sia_createTandaTerimaIjazah", conn)
