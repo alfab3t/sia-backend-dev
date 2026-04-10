@@ -3,6 +3,7 @@ using astratech_apps_backend.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using astratech_apps_backend.Helpers;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace astratech_apps_backend.Controllers
 {
@@ -343,34 +344,22 @@ namespace astratech_apps_backend.Controllers
         {
             try
             {
-                var detectedRole = await _repository.DetectUserRoleAsync(dto.ApprovedBy);
-                if (string.IsNullOrEmpty(detectedRole))
-                {
-                    return BadRequest(new { 
-                        message = "Role tidak valid untuk user ini."
-                    });
-                }
-                
-                dto.Role = detectedRole;
-                
+                var roleId = User.FindFirstValue("idrole");
+                if (string.IsNullOrEmpty(roleId))
+                    return Unauthorized();
+
+                dto.Role = roleId;
+
                 var success = await _repository.ApproveCutiAsync(dto);
-                
+
                 if (success)
-                {
-                    return Ok(new { 
-                        message = "Cuti Akademik berhasil disetujui."
-                    });
-                }
-                
-                return BadRequest(new { 
-                    message = "Gagal menyetujui cuti akademik."
-                });
+                    return Ok(new { message = "Cuti Akademik berhasil disetujui." });
+
+                return BadRequest(new { message = "Gagal menyetujui cuti akademik." });
             }
             catch (Exception)
             {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat menyetujui cuti akademik."
-                });
+                return BadRequest(new { message = "Terjadi kesalahan saat menyetujui cuti akademik." });
             }
         }
 
@@ -416,33 +405,27 @@ namespace astratech_apps_backend.Controllers
             try
             {
                 if (string.IsNullOrEmpty(dto.Id))
-                {
                     return BadRequest(new { message = "ID cuti akademik harus diisi." });
-                }
-                
+
                 if (string.IsNullOrEmpty(dto.Username))
-                {
                     return BadRequest(new { message = "Username harus diisi." });
-                }
-                
+
+                var roleId = User.FindFirstValue("idrole");
+                if (string.IsNullOrEmpty(roleId))
+                    return Unauthorized();
+
+                dto.Role = roleId;
+
                 var success = await _repository.RejectCutiAsync(dto);
-                
-                if (success)    
-                {
-                    return Ok(new { 
-                        message = "Cuti Akademik berhasil ditolak"
-                    });
-                }
-                
-                return BadRequest(new { 
-                    message = "Gagal menolak cuti akademik."
-                });
+
+                if (success)
+                    return Ok(new { message = "Cuti Akademik berhasil ditolak" });
+
+                return BadRequest(new { message = "Gagal menolak cuti akademik." });
             }
             catch (Exception)
             {
-                return BadRequest(new { 
-                    message = "Terjadi kesalahan saat menolak cuti akademik."
-                });
+                return BadRequest(new { message = "Terjadi kesalahan saat menolak cuti akademik." });
             }
         }
 

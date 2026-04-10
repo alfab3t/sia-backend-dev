@@ -458,20 +458,16 @@ namespace astratech_apps_backend.Repositories.Implementations
                 await using var conn = new SqlConnection(_conn);
                 await conn.OpenAsync();
 
-                // Detect user role first
-                var userRole = await DetectUserRoleAsync(dto.Username);
-                
                 var cmd = new SqlCommand("sia_tolakCutiAkademik", conn)
                 {
                     CommandType = CommandType.StoredProcedure
                 };
 
                 cmd.Parameters.AddWithValue("@CutiAkademikId", dto.Id);
-                cmd.Parameters.AddWithValue("@Role", userRole); // Role yang sudah di-detect
-                cmd.Parameters.AddWithValue("@Keterangan", ""); // Kosong untuk sementara
+                cmd.Parameters.AddWithValue("@Role", dto.Role);
+                cmd.Parameters.AddWithValue("@Keterangan", "");
 
                 await cmd.ExecuteNonQueryAsync();
-                
                 return true;
             }
             catch (Exception)
@@ -511,46 +507,6 @@ namespace astratech_apps_backend.Repositories.Implementations
             {
                 // Log the actual error for debugging
                 throw new InvalidOperationException($"Error in UploadSKAsync: {ex.Message}", ex);
-            }
-        }
-
-        public async Task<string> DetectUserRoleAsync(string username)  
-        {
-            try
-            {
-                await using var conn = new SqlConnection(_conn);
-                await conn.OpenAsync();
-                
-                await using var cmd = new SqlCommand("all_getIdentityByUser", conn)
-                {
-                    CommandType = CommandType.StoredProcedure
-                };
-
-                cmd.Parameters.AddWithValue("@UsernameToFind", username);
-                await using var reader = await cmd.ExecuteReaderAsync();
-
-                if (await reader.ReadAsync())
-                {
-                    var rolId = reader["rol_id"]?.ToString() ?? "";
-                    var jabMainId = reader["jab_main_id"]?.ToString() ?? "";
-                    
-                    // Mapping rol_id ke role name untuk SP approval
-                    return rolId switch
-                    {
-                        "ROL999" => "wadir1",
-                        "ROL71" => "prodi", 
-                        _ when username.Contains("finance", StringComparison.OrdinalIgnoreCase) => "finance",
-                        _ when jabMainId == "4" => "wadir1",  // fallback jika rol_id kosong
-                        _ when jabMainId == "6" => "prodi",   // fallback jika rol_id kosong
-                        _ => ""
-                    };
-                }
-                
-                return "";
-            }
-            catch (Exception)
-            {
-                return "";
             }
         }
 
