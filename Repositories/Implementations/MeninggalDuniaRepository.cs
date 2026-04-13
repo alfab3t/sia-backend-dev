@@ -700,46 +700,6 @@ namespace astratech_apps_backend.Repositories.Implementations
             }
         }
 
-        public async Task<string> DetectUserRoleAsync(string username)
-        {
-            try
-            {
-                await using var conn = new SqlConnection(_conn);
-                await conn.OpenAsync();
-                
-                await using var cmd = new SqlCommand("all_getIdentityByUser", conn)
-                {
-                    CommandType = CommandType.StoredProcedure
-                };
-
-                cmd.Parameters.AddWithValue("@UsernameToFind", username);
-                await using var reader = await cmd.ExecuteReaderAsync();
-
-                if (await reader.ReadAsync())
-                {
-                    var rolId = reader["rol_id"]?.ToString() ?? "";
-                    var jabMainId = reader["jab_main_id"]?.ToString() ?? "";
-                    
-                    // Mapping rol_id ke role name
-                    return rolId switch
-                    {
-                        "ROL999" => "wadir1",
-                        "ROL71" => "prodi", 
-                        _ when username.Contains("finance", StringComparison.OrdinalIgnoreCase) => "finance",
-                        _ when jabMainId == "4" => "wadir1",  // fallback jika rol_id kosong
-                        _ when jabMainId == "6" => "prodi",   // fallback jika rol_id kosong
-                        _ => ""
-                    };
-                }
-                
-                return "";
-            }
-            catch (Exception)
-            {
-                return "";
-            }
-        }
-
         public async Task<IEnumerable<MahasiswaDropdownSPDto>> GetMahasiswaDropdownSPAsync()
         {
             var result = new List<MahasiswaDropdownSPDto>();

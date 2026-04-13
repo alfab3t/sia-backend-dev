@@ -3,6 +3,7 @@ using astratech_apps_backend.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using astratech_apps_backend.Helpers;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 
 namespace astratech_apps_backend.Controllers
@@ -360,18 +361,15 @@ namespace astratech_apps_backend.Controllers
             try
             {
                 id = Uri.UnescapeDataString(id);
-                var detectedRole = await _repository.DetectUserRoleAsync(dto.Username);
-                if (string.IsNullOrEmpty(detectedRole))
-                {
-                    return BadRequest(new { message = "ROL Tidak Valid." });
-                }
 
-                dto.Role = detectedRole;
+                var roleId = User.FindFirstValue("idrole");
+                if (string.IsNullOrEmpty(roleId))
+                    return Unauthorized();
+
+                dto.Role = roleId;
                 var result = await _repository.ApproveAsync(id, dto);
                 if (!result)
-                {
                     return BadRequest(new { message = "Gagal Menyetujui Data Pengajuan Meninggal Dunia." });
-                }
 
                 return Ok(new { message = "Data Pengajuan Meninggal Dunia berhasil disetujui" });
             }
@@ -388,18 +386,15 @@ namespace astratech_apps_backend.Controllers
             try
             {
                 id = Uri.UnescapeDataString(id);
-                var detectedRole = await _repository.DetectUserRoleAsync(dto.Username);
-                if (string.IsNullOrEmpty(detectedRole))
-                {
-                    return BadRequest(new { message = "ROL Tidak Valid" });
-                }
 
-                dto.Role = detectedRole;
+                var roleId = User.FindFirstValue("idrole");
+                if (string.IsNullOrEmpty(roleId))
+                    return Unauthorized();
+
+                dto.Role = roleId;
                 var success = await _repository.RejectAsync(id, dto);
                 if (!success)
-                {
                     return BadRequest(new { message = "Gagal Menolak Data pengajuan Meninggal Dunia." });
-                }
 
                 return Ok(new { message = "Data pengajuan Meninggal Dunia Berhasil Ditolak" });
             }

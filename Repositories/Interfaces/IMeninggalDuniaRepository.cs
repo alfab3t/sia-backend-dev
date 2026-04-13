@@ -28,7 +28,6 @@ namespace astratech_apps_backend.Repositories.Interfaces
         Task<IEnumerable<RiwayatMeninggalDuniaExcelResponse>> GetRiwayatExcelAsync(string sort,string konsentrasi);
         Task<bool> ApproveAsync(string id, ApproveMeninggalDuniaRequest dto);
         Task<bool> RejectAsync(string id, RejectMeninggalDuniaRequest dto);
-        Task<string> DetectUserRoleAsync(string username);
         Task<IEnumerable<KonsentrasiDropdownDto>> GetKonsentrasiBySekprodAsync(string username);
         Task<IEnumerable<CutiAkademikDTOs.MahasiswaByKonsentrasiDto>> GetMahasiswaByKonsentrasiAsync(string username);
     }
